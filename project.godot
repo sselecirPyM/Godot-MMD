@@ -1,0 +1,45 @@
+; Engine configuration file.
+; It's best edited using the editor UI and not directly,
+; since the parameters that go here are not all obvious.
+;
+; Format:
+;   [section] ; section goes between []
+;   param=value ; assign values to parameters
+
+config_version=5
+
+[application]
+
+config/name="Mmd"
+run/main_scene="res://git_exclude/Scenes/MMD_1.tscn"
+config/features=PackedStringArray("4.2", "C#", "Forward Plus")
+config/icon="res://icon.svg"
+
+[display]
+
+window/size/viewport_width=1920
+window/size/viewport_height=1080
+window/size/window_width_override=1152
+window/size/window_height_override=648
+window/stretch/mode="viewport"
+
+[dotnet]
+
+project/assembly_name="Mmd"
+
+[editor]
+
+movie_writer/movie_file="res://git_exclude/Movies/MMD1.mp4"
+movie_writer/disable_vsync=true
+
+[editor_plugins]
+
+enabled=PackedStringArray("res://addons/MMDImport/plugin.cfg")
+
+[physics]
+
+3d/solver/solver_iterations=32
+
+[rendering]
+
+scaling_3d/scale=2.0

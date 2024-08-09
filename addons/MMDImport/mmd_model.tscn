@@ -1,0 +1,10 @@
+[gd_scene load_steps=2 format=3 uid="uid://c7arolm16hihd"]
+
+[ext_resource type="Script" path="res://addons/MMDImport/MMDModel.cs" id="1_yd2h8"]
+
+[node name="MmdModel" type="Node3D"]
+script = ExtResource("1_yd2h8")
+
+[node name="Skeleton3D" type="Skeleton3D" parent="."]
+
+[node name="ModelMorph" type="MeshInstance3D" parent="Skeleton3D"]
