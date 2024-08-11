@@ -68,6 +68,10 @@ namespace Mmd.addons.MMDImport
                 var vmdCameraResource = new VMDCameraResource();
                 vmdCameraResource.Data = bytes;
                 vmdCameraResource.ResourceName = vmd.Name;
+                var last = vmd.CameraKeyFrames[^1];
+                vmdCameraResource.Duration = (double)last.Frame / 30.0;
+
+
                 return ResourceSaver.Save(vmdCameraResource, filename);
             }
             else
@@ -75,6 +79,13 @@ namespace Mmd.addons.MMDImport
                 var vmdResource = new VMDResource();
                 vmdResource.Data = bytes;
                 vmdResource.ResourceName = vmd.Name;
+
+                foreach (var f in vmd.BoneKeyFrameSet)
+                {
+                    var last = f.Value[^1];
+                    vmdResource.Duration = Mathf.Max(vmdResource.Duration, last.Frame / 30.0);
+                }
+
                 return ResourceSaver.Save(vmdResource, filename);
             }
         }

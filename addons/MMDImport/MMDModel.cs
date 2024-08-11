@@ -6,6 +6,7 @@ using Matrix = System.Numerics.Matrix4x4;
 
 namespace Mmd.addons.MMDImport
 {
+    [Tool]
     public partial class MMDModel : Node3D
     {
         public enum IKTransformOrder
@@ -139,8 +140,14 @@ namespace Mmd.addons.MMDImport
             public string name;
         }
 
+        double _currentTime;
+
         [Export]
-        public double currentTime;
+        public double currentTime
+        {
+            get => _currentTime;
+            set { _currentTime = value; }
+        }
         [Export]
         public VMDResource vmdResource
         {
@@ -154,8 +161,12 @@ namespace Mmd.addons.MMDImport
         VMDFormat vmd;
         [Export]
         public bool UseBulletPhysics = true;
+        //[Export]
+        //public bool PhysicsDebug;
         [Export]
-        public bool PhysicsDebug;
+        public bool AutoPlay = true;
+        [Export]
+        public bool Playing;
 
         VMDResource _vmdResource;
         public Skeleton3D skeleton;
@@ -172,8 +183,9 @@ namespace Mmd.addons.MMDImport
         MMDBulletWorld bulletWorld = null;
         void CreatePhysics()
         {
+            if (bulletWorld != null)
+                return;
             bulletWorld = new MMDBulletWorld();
-
             bulletWorld.Initialize();
 
             var physicsBoneMeta = (Godot.Collections.Array<Godot.Collections.Dictionary>)GetMeta("physics_bone");
@@ -202,38 +214,38 @@ namespace Mmd.addons.MMDImport
 
                 physicsBones.Add(physicsBone);
 
-                if (PhysicsDebug)
-                {
-                    int shape = (int)meta["shape"];
-                    var dimensions = (Godot.Vector3)meta["dimensions"];
-                    var position = (Godot.Vector3)meta["position"];
-                    var rotation = (Godot.Vector3)meta["rotation"];
-                    MeshInstance3D collisionVisualizer = new MeshInstance3D();
-                    collisionVisualizer.Transform = MMDPhysicsHelper.GetTransform3D(rigidBody.MotionState.WorldTransform);
+                //if (PhysicsDebug)
+                //{
+                //    int shape = (int)meta["shape"];
+                //    var dimensions = (Godot.Vector3)meta["dimensions"];
+                //    var position = (Godot.Vector3)meta["position"];
+                //    var rotation = (Godot.Vector3)meta["rotation"];
+                //    MeshInstance3D collisionVisualizer = new MeshInstance3D();
+                //    collisionVisualizer.Transform = MMDPhysicsHelper.GetTransform3D(rigidBody.MotionState.WorldTransform);
 
-                    switch (shape)
-                    {
-                        case 0:
-                            var sphere = new SphereMesh();
-                            sphere.Radius = dimensions.X;
-                            sphere.Height = dimensions.X;
-                            collisionVisualizer.Mesh = sphere;
-                            break;
-                        case 1:
-                            var box = new BoxMesh();
-                            box.Size = dimensions;
-                            collisionVisualizer.Mesh = box;
-                            break;
-                        case 2:
-                            var capsule = new CapsuleMesh();
-                            capsule.Radius = dimensions.X;
-                            capsule.Height = dimensions.Y;
-                            collisionVisualizer.Mesh = capsule;
-                            break;
-                    }
-                    physicsBone.visuallizer = collisionVisualizer;
-                    AddChild(collisionVisualizer);
-                }
+                //    switch (shape)
+                //    {
+                //        case 0:
+                //            var sphere = new SphereMesh();
+                //            sphere.Radius = dimensions.X;
+                //            sphere.Height = dimensions.X;
+                //            collisionVisualizer.Mesh = sphere;
+                //            break;
+                //        case 1:
+                //            var box = new BoxMesh();
+                //            box.Size = dimensions;
+                //            collisionVisualizer.Mesh = box;
+                //            break;
+                //        case 2:
+                //            var capsule = new CapsuleMesh();
+                //            capsule.Radius = dimensions.X;
+                //            capsule.Height = dimensions.Y;
+                //            collisionVisualizer.Mesh = capsule;
+                //            break;
+                //    }
+                //    physicsBone.visuallizer = collisionVisualizer;
+                //    AddChild(collisionVisualizer);
+                //}
             }
 
             foreach (var meta in jointMeta)
@@ -251,8 +263,32 @@ namespace Mmd.addons.MMDImport
             }
         }
 
-        public override void _Ready()
+        void FreePhysicsResources()
         {
+            if (bulletWorld == null)
+                return;
+            foreach (var joint in mmdJoints)
+            {
+                bulletWorld.world.RemoveConstraint(joint.joint);
+                joint.joint.Dispose();
+                joint.joint = null;
+            }
+            mmdJoints.Clear();
+            foreach (var rigidBody in physicsBones)
+            {
+                bulletWorld.world.RemoveRigidBody(rigidBody.rigidBody);
+                rigidBody.rigidBody.Dispose();
+                rigidBody.rigidBody = null;
+            }
+            physicsBones.Clear();
+            bulletWorld?.Dispose();
+            bulletWorld = null;
+        }
+
+        void CreateGenericResource()
+        {
+            if (mmdBones.Count > 0)
+                return;
             skeleton = GetChild<Skeleton3D>(0);
             morphMesh = skeleton.GetChild<MeshInstance3D>(0);
             modelScale = (float)GetMeta("model_scale", 0.1f);
@@ -358,14 +394,19 @@ namespace Mmd.addons.MMDImport
                 ikBones.Add(ikBone);
             }
 
-            if (UseBulletPhysics)
-            {
-                CreatePhysics();
-            }
         }
 
         public override void _Process(double delta)
         {
+            CreateGenericResource();
+            if (UseBulletPhysics)
+            {
+                CreatePhysics();
+            }
+            if (!UseBulletPhysics)
+            {
+                FreePhysicsResources();
+            }
             if (vmdResource != null && vmd == null)
             {
                 var bytes = vmdResource.Data;
@@ -373,17 +414,23 @@ namespace Mmd.addons.MMDImport
                 vmd = VMDFormat.Load(bytes);
                 vmd.Scale(modelScale);
             }
+            if (AutoPlay && !Engine.IsEditorHint())
+            {
+                Playing = true;
+            }
+            if (Playing)
+            {
+                currentTime += delta;
+            }
 
             if (vmd != null)
             {
-                currentTime += delta;
                 SetAnimation(delta);
             }
         }
         public override void _ExitTree()
         {
-            bulletWorld?.Dispose();
-            bulletWorld = null;
+            FreePhysicsResources();
         }
 
         void SetAnimation(double delta)
@@ -422,19 +469,19 @@ namespace Mmd.addons.MMDImport
             UpdateAppendBones();
             UpdateBones();
 
-            if (UseBulletPhysics)
+            if (bulletWorld != null)
             {
                 UpdateKinematicBones();
                 bulletWorld.Simulation(delta);
                 UpdatePhysicsBones();
-                if (PhysicsDebug)
-                {
-                    foreach (var bone in physicsBones)
-                    {
-                        if (bone.visuallizer != null)
-                            bone.visuallizer.Transform = MMDPhysicsHelper.GetTransform3D(bone.rigidBody.MotionState.WorldTransform);
-                    }
-                }
+                //if (PhysicsDebug)
+                //{
+                //    foreach (var bone in physicsBones)
+                //    {
+                //        if (bone.visuallizer != null)
+                //            bone.visuallizer.Transform = MMDPhysicsHelper.GetTransform3D(bone.rigidBody.MotionState.WorldTransform);
+                //    }
+                //}
             }
         }
 
