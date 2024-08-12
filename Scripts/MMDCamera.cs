@@ -6,6 +6,7 @@ using System;
 
 namespace Mmd.Scripts
 {
+    [Tool]
     public partial class MMDCamera : Camera3D
     {
         [Export]
@@ -25,6 +26,11 @@ namespace Mmd.Scripts
         [Export]
         public float motionScale = 0.1f;
 
+        [Export]
+        public bool AutoPlay = true;
+        [Export]
+        public bool Playing;
+
         VMDCameraResource _vmdResource;
 
         VMDFormat vmd;
@@ -36,6 +42,14 @@ namespace Mmd.Scripts
                 vmd = VMDFormat.Load(_vmdResource.Data);
                 vmd.Scale(motionScale);
             }
+            if (AutoPlay && !Engine.IsEditorHint())
+            {
+                Playing = true;
+            }
+            if (Playing)
+            {
+                currentTime += delta;
+            }
 
             if (vmd != null)
             {
@@ -45,7 +59,6 @@ namespace Mmd.Scripts
                 Position = GetVector3(cam.position) + Quaternion * new Vector3(0, 0, -cam.distance);
                 Fov = cam.FOV;
             }
-            currentTime += delta;
 
         }
 
