@@ -122,10 +122,17 @@ namespace Mmd.addons.MMDImport
                 int i3 = material.TextureIndex;
                 if (i3 >= 0 && i3 < pmx.Textures.Count)
                 {
-                    var image = Image.LoadFromFile(createModelContext.basePath + '/' + pmx.Textures[i3].TexturePath);
-                    transparent = DetectTransparent(image);
-                    var imageTexture = GD.Load<Texture2D>(createModelContext.basePath + '/' + pmx.Textures[i3].TexturePath);
-                    m2.AlbedoTexture = imageTexture;
+                    try
+                    {
+                        var image = Image.LoadFromFile(createModelContext.basePath + '/' + pmx.Textures[i3].TexturePath);
+                        transparent = DetectTransparent(image);
+                        var imageTexture = GD.Load<Texture2D>(createModelContext.basePath + '/' + pmx.Textures[i3].TexturePath);
+                        m2.AlbedoTexture = imageTexture;
+                    }
+                    catch
+                    {
+
+                    }
                 }
                 if (transparent)
                 {
