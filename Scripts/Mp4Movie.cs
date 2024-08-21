@@ -81,6 +81,7 @@ namespace Mmd.Scripts
                 "-pixel_format","rgb24",
                 "-r", fps.ToString(),
                 "-colorspace","bt709",
+                "-color_trc","iec61966-2-1",
                 "-s", texture.GetWidth() + "X" + texture.GetHeight(),
                 "-i", @"pipe:0",
             };
