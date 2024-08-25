@@ -21,6 +21,7 @@ namespace Mmd.addons.MMDImport
             public Godot.Collections.Array<Godot.Collections.Dictionary> physicsBoneMeta;
             public Godot.Collections.Array<Godot.Collections.Dictionary> jointMeta;
             public Godot.Collections.Array<Godot.Collections.Dictionary> materialMeta;
+            public Godot.Collections.Dictionary options;
         }
 
         public override string[] _GetExtensions()
@@ -56,6 +57,7 @@ namespace Mmd.addons.MMDImport
             var createModelContext = new CreateModelContext()
             {
                 basePath = basePath,
+                options = options,
             };
             CollectMorphVertex(pmx, createModelContext);
             CollectMaterial(pmx, createModelContext);
@@ -105,7 +107,6 @@ namespace Mmd.addons.MMDImport
             createModelContext.materialMeta = materialMeta;
             createModelContext.materialMap = new System.Collections.Generic.Dictionary<PMX_Material, Material>();
 
-            Directory.CreateDirectory(ProjectSettings.GlobalizePath(createModelContext.basePath) + "/materials");
             for (int i = 0; i < pmx.Materials.Count; i++)
             {
                 PMX_Material material = pmx.Materials[i];
@@ -113,6 +114,25 @@ namespace Mmd.addons.MMDImport
                 {
                     {"flags",(int)material.DrawFlags }
                 });
+            }
+            Godot.Collections.Dictionary materials = null;
+            if (createModelContext.options.TryGetValue("_subresources", out var _subResource))
+            {
+                Godot.Collections.Dictionary subresources = _subResource.AsGodotDictionary();
+                materials = subresources?["materials"].AsGodotDictionary();
+            }
+            for (int i = 0; i < pmx.Materials.Count; i++)
+            {
+                PMX_Material material = pmx.Materials[i];
+                if (materials != null && materials.TryGetValue(material.Name, out var _mat))
+                {
+                    var mat = _mat.AsGodotDictionary();
+                    if (mat["use_external/enabled"].AsBool())
+                    {
+                        createModelContext.materialMap[material] = ResourceLoader.Load<Material>(mat["use_external/path"].AsString());
+                        continue;
+                    }
+                }
 
                 var m2 = new StandardMaterial3D();
                 m2.TextureFilter = BaseMaterial3D.TextureFilterEnum.LinearWithMipmapsAnisotropic;
@@ -140,7 +160,7 @@ namespace Mmd.addons.MMDImport
                 }
                 m2.DepthDrawMode = BaseMaterial3D.DepthDrawModeEnum.Always;
                 m2.ResourceName = material.Name;
-                m2.RenderPriority = pmx.Materials.Count - i;
+                m2.RenderPriority = i;
                 createModelContext.materialMap[material] = m2;
             }
         }
