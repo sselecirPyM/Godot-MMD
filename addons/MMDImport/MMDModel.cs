@@ -3,6 +3,8 @@ using Mmd.addons.MMDImport.Util;
 using System;
 using System.Collections.Generic;
 using Matrix = System.Numerics.Matrix4x4;
+using Vector3 = System.Numerics.Vector3;
+using Quaternion = System.Numerics.Quaternion;
 
 namespace Mmd.addons.MMDImport
 {
@@ -58,10 +60,10 @@ namespace Mmd.addons.MMDImport
         {
             public Vector3 restPosition;
             public Quaternion restRotation;
-            public Transform3D restTransform;
-            public Transform3D globalRestTransform;
+            public Matrix restTransform;
+            public Matrix globalRestTransform;
 
-            public Transform3D invertRestTransform;
+            public Matrix invertRestTransform;
 
             public Vector3 position;
             public Quaternion rotation;
@@ -74,24 +76,24 @@ namespace Mmd.addons.MMDImport
             public MMDBone parent;
             public string name;
 
-            public Transform3D transform3D;
+            public Matrix transform;
 
             public bool isPhysicsBone;
 
             public Vector3 GetPosition()
             {
-                return transform3D * new Vector3(0, 0, 0);
+                return transform.Translation;
             }
 
             public void ComputeTransform()
             {
                 if (parent != null)
                 {
-                    transform3D = parent.transform3D * restTransform * new Transform3D(new Basis(rotation * appendRotation), position + appendPosition);
+                    transform = TRS(position + appendPosition, rotation * appendRotation) * restTransform * parent.transform;
                 }
                 else
                 {
-                    transform3D = restTransform * new Transform3D(new Basis(rotation * appendRotation), position + appendPosition);
+                    transform = TRS(position + appendPosition, rotation * appendRotation) * restTransform;
                 }
             }
 
@@ -99,11 +101,11 @@ namespace Mmd.addons.MMDImport
             {
                 if (parent != null)
                 {
-                    transform3D = parent.transform3D * restTransform * new Transform3D(new Basis(rotation), position);
+                    transform = TRS(position, rotation) * restTransform * parent.transform;
                 }
                 else
                 {
-                    transform3D = restTransform * new Transform3D(new Basis(rotation), position);
+                    transform = TRS(position, rotation) * restTransform;
                 }
             }
         }
@@ -118,26 +120,36 @@ namespace Mmd.addons.MMDImport
 
             public Node3D visuallizer;
 
-            public void SetTransform(Transform3D transform)
+            public void SetTransform(Matrix transform)
             {
-                rigidBody.MotionState.WorldTransform = offset * MMDPhysicsHelper.GetMatrix(transform);
+                rigidBody.MotionState.WorldTransform = offset * transform;
             }
 
-            public void SetTransform2(Transform3D transform)
+            public void SetTransform2(Matrix transform)
             {
-                rigidBody.WorldTransform = offset * MMDPhysicsHelper.GetMatrix(transform);
+                rigidBody.WorldTransform = offset * transform;
                 rigidBody.MotionState.WorldTransform = rigidBody.WorldTransform;
             }
 
-            public Transform3D GetTransform()
+            public Matrix GetTransform2()
             {
-                return MMDPhysicsHelper.GetTransform3D(invertOffset * rigidBody.MotionState.WorldTransform);
+                return invertOffset * rigidBody.MotionState.WorldTransform;
             }
         }
         class MMDJoint
         {
             public BulletSharp.TypedConstraint joint;
             public string name;
+        }
+
+        class MorphDesc
+        {
+            public string type;
+            public int Index;
+            public Vector3 Translation;
+            public Quaternion Rotation;
+            public string MorphName;
+            public float Rate;
         }
 
         double _currentTime;
@@ -180,6 +192,8 @@ namespace Mmd.addons.MMDImport
         List<MMDBone> mmdBones = new List<MMDBone>();
         List<MMDJoint> mmdJoints = new List<MMDJoint>();
 
+        Dictionary<string, MorphDesc[]> morphDescs;
+
         MMDBulletWorld bulletWorld = null;
         void CreatePhysics()
         {
@@ -189,7 +203,6 @@ namespace Mmd.addons.MMDImport
             bulletWorld.Initialize();
 
             var physicsBoneMeta = (Godot.Collections.Array<Godot.Collections.Dictionary>)GetMeta("physics_bone");
-            var jointMeta = (Godot.Collections.Array<Godot.Collections.Dictionary>)GetMeta("joint");
             foreach (var meta in physicsBoneMeta)
             {
                 var rigidBody = bulletWorld.AddRigidBody(meta);
@@ -199,7 +212,7 @@ namespace Mmd.addons.MMDImport
 
                 var mmdBone = mmdBones[index];
                 mmdBone.isPhysicsBone = type != 0;
-                var offset = (rigidBody.WorldTransform * MMDPhysicsHelper.GetMatrix(mmdBone.globalRestTransform).Invert());
+                var offset = rigidBody.WorldTransform * mmdBone.globalRestTransform.Invert();
 
                 //var offset = Transform3D.Identity;
                 var physicsBone = new PhysicsBone()
@@ -248,6 +261,7 @@ namespace Mmd.addons.MMDImport
                 //}
             }
 
+            var jointMeta = (Godot.Collections.Array<Godot.Collections.Dictionary>)GetMeta("joint");
             foreach (var meta in jointMeta)
             {
                 int r1 = (int)meta["bone1"];
@@ -297,17 +311,18 @@ namespace Mmd.addons.MMDImport
             {
                 var bone = new MMDBone()
                 {
-                    restPosition = skeleton.GetBonePosePosition(i),
-                    restRotation = Quaternion.Identity,
-                    rotation = Quaternion.Identity,
-                    appendRotation = Quaternion.Identity,
+                    restPosition = GetVector3S(skeleton.GetBonePosePosition(i)),
+                    restRotation = System.Numerics.Quaternion.Identity,
+                    rotation = System.Numerics.Quaternion.Identity,
+                    appendRotation = System.Numerics.Quaternion.Identity,
                     index = i,
                     name = skeleton.GetBoneName(i),
-                    globalRestTransform = skeleton.GetBoneGlobalRest(i)
+                    globalRestTransform = MMDPhysicsHelper.GetMatrix(skeleton.GetBoneGlobalRest(i))
                 };
 
-                bone.restTransform = new Transform3D(Basis.Identity, bone.restPosition);
-                bone.invertRestTransform = bone.restTransform.AffineInverse();
+                bone.restTransform = Matrix.CreateTranslation(bone.restPosition);
+                Matrix.Invert(bone.restTransform, out bone.invertRestTransform);
+
                 int parentIndex = skeleton.GetBoneParent(i);
                 if (parentIndex != -1)
                 {
@@ -329,6 +344,7 @@ namespace Mmd.addons.MMDImport
                 };
                 appendBones.Add(appendBone);
             }
+
             var ikBones1 = (Godot.Collections.Array<Godot.Collections.Dictionary>)GetMeta("ik_bone");
             foreach (var dict in ikBones1)
             {
@@ -340,8 +356,8 @@ namespace Mmd.addons.MMDImport
                     var ikLink = new IKLink()
                     {
                         index = (int)link["index"],
-                        min = (Vector3)link["min"],
-                        max = (Vector3)link["max"],
+                        min = GetVector3S((Godot.Vector3)link["min"]),
+                        max = GetVector3S((Godot.Vector3)link["max"]),
                         limited = (bool)link["limited"]
                     };
 
@@ -413,6 +429,7 @@ namespace Mmd.addons.MMDImport
 
                 vmd = VMDFormat.Load(bytes);
                 vmd.Scale(modelScale);
+                ClearStates();
             }
             if (AutoPlay && !Engine.IsEditorHint())
             {
@@ -439,30 +456,66 @@ namespace Mmd.addons.MMDImport
             {
                 return;
             }
-
-            foreach (var pair in vmd.MorphKeyFrameSet)
+            if (morphDescs == null)
             {
-                int index = morphMesh.FindBlendShapeByName(pair.Key);
-                if (index != -1)
+                morphDescs = new Dictionary<string, MorphDesc[]>();
+                var boneMorphMeta = (Godot.Collections.Dictionary)GetMeta("morph");
+                foreach (var meta in boneMorphMeta)
                 {
-                    morphMesh.SetBlendShapeValue(index, GetWeight(pair.Value));
+                    var arr = (Godot.Collections.Array)meta.Value;
+                    var arr1 = new MorphDesc[arr.Count];
+                    for (int i = 0; i < arr.Count; i++)
+                    {
+                        var dict = (Godot.Collections.Dictionary)arr[i];
+                        if (dict["type"].AsString() == "bone")
+                        {
+                            arr1[i] = new MorphDesc()
+                            {
+                                type = dict["type"].AsString(),
+                                Index = (int)dict["bone"],
+                                Rotation = GetQuaternionS((Godot.Quaternion)dict["rotation"]),
+                                Translation = GetVector3S((Godot.Vector3)dict["translation"]),
+                            };
+                        }
+                        else
+                        {
+                            arr1[i] = new MorphDesc()
+                            {
+                                type = dict["type"].AsString(),
+                                MorphName = (string)dict["morph"],
+                                Rate = (float)dict["rate"],
+                            };
+                        }
+                    }
+                    morphDescs[meta.Key.AsString()] = arr1;
                 }
             }
+
+
             for (int i = 0; i < mmdBones.Count; i++)
             {
                 var bone = mmdBones[i];
+                bone.appendRotation = System.Numerics.Quaternion.Identity;
                 if (!vmd.BoneKeyFrameSet.TryGetValue(bone.name, out var list))
+                {
+                    bone.position = System.Numerics.Vector3.Zero;
+                    bone.rotation = System.Numerics.Quaternion.Identity;
                     continue;
+                }
                 var frame = GetBoneKeyFrame(list);
-                //var rest = skeleton.GetBoneRest(i);
-                //skeleton.SetBonePosePosition(i, rest.Origin + GetVector3(frame.Translation));
-                //skeleton.SetBonePoseRotation(i, GetQuaternion(frame.Rotation));
 
-                bone.position = GetVector3(frame.Translation);
-                bone.rotation = GetQuaternion(frame.Rotation);
+                bone.position = frame.Translation;
+                bone.rotation = frame.Rotation;
+            }
+            foreach (var pair in vmd.MorphKeyFrameSet)
+            {
+                var weight = GetWeight(pair.Value);
+                _SetMorph(pair.Key, weight);
             }
 
             UpdateBonesBase();
+            UpdateAppendBones();
+            UpdateBones();
             SolveIKs();
 
             UpdateBonesBase();
@@ -486,6 +539,42 @@ namespace Mmd.addons.MMDImport
         }
 
 
+        void ClearStates()
+        {
+            for (int i = 0; i < morphMesh.GetBlendShapeCount(); i++)
+            {
+                morphMesh.SetBlendShapeValue(i, 0.0f);
+            }
+        }
+
+        //void _SetMorph(string name, float weight)
+        //{
+        //    _SetMorph1(name, weight);
+        //}
+        void _SetMorph(string name, float weight)
+        {
+            int index = morphMesh.FindBlendShapeByName(name);
+            if (index != -1)
+            {
+                morphMesh.SetBlendShapeValue(index, weight);
+            }
+            if (morphDescs.TryGetValue(name, out var ms))
+            {
+                foreach (var b in ms)
+                {
+                    if (b.type == "bone")
+                    {
+                        mmdBones[b.Index].position += b.Translation * weight;
+                        mmdBones[b.Index].rotation *= System.Numerics.Quaternion.Slerp(System.Numerics.Quaternion.Identity, b.Rotation, weight);
+                    }
+                    else if (b.type == "group")
+                    {
+                        _SetMorph(b.MorphName, b.Rate * weight);
+                    }
+                }
+            }
+        }
+
         public void ResetPhysics()
         {
             UpdateBonesBase();
@@ -493,7 +582,7 @@ namespace Mmd.addons.MMDImport
             foreach (var physicsBone in physicsBones)
             {
                 var bone = mmdBones[physicsBone.index];
-                physicsBone.SetTransform2(bone.transform3D);
+                physicsBone.SetTransform2(bone.transform);
             }
             bulletWorld.Simulation(1 / 60.0);
         }
@@ -504,7 +593,7 @@ namespace Mmd.addons.MMDImport
                 if (physicsBone.type == 0)
                 {
                     var bone = mmdBones[physicsBone.index];
-                    physicsBone.SetTransform(bone.transform3D);
+                    physicsBone.SetTransform(bone.transform);
                 }
             }
         }
@@ -517,8 +606,8 @@ namespace Mmd.addons.MMDImport
                 {
                     var bone = mmdBones[physicsBone.index];
 
-                    bone.transform3D = physicsBone.GetTransform();
-                    skeleton.SetBoneGlobalPoseOverride(bone.index, bone.transform3D, 1, true);
+                    bone.transform = physicsBone.GetTransform2();
+                    skeleton.SetBoneGlobalPoseOverride(bone.index, MMDPhysicsHelper.GetTransform3D(bone.transform), 1, true);
                 }
             }
         }
@@ -536,7 +625,7 @@ namespace Mmd.addons.MMDImport
             {
                 if (!bone.isPhysicsBone || !UseBulletPhysics)
                     bone.ComputeTransform();
-                skeleton.SetBoneGlobalPoseOverride(bone.index, bone.transform3D, 1, true);
+                skeleton.SetBoneGlobalPoseOverride(bone.index, MMDPhysicsHelper.GetTransform3D(bone.transform), 1, true);
             }
         }
 
@@ -544,10 +633,15 @@ namespace Mmd.addons.MMDImport
         {
             foreach (var append in appendBones)
             {
-                //mmdBones[append.bone].appendRotation = mmdBones[append.index].rotation;
-                //mmdBones[append.bone].transform3D.Basis *= new Basis(Quaternion.Identity.Slerp(mmdBones[append.bone].appendRotation, append.ratio));
                 if (append.rotate)
-                    mmdBones[append.bone].appendRotation = Quaternion.Identity.Slerp(mmdBones[append.index].rotation.Normalized(), append.ratio);
+                {
+                    mmdBones[append.bone].appendRotation = System.Numerics.Quaternion.Normalize(System.Numerics.Quaternion.Slerp(System.Numerics.Quaternion.Identity,
+                        mmdBones[append.index].rotation, append.ratio));
+                }
+                if (append.transition)
+                {
+                    mmdBones[append.bone].appendPosition = mmdBones[append.index].position * append.ratio;
+                }
             }
         }
 
@@ -681,9 +775,8 @@ namespace Mmd.addons.MMDImport
             var ikTargetPosition = mmdBones[ikBone.bone].GetPosition();
 
             var halfLimit = ikBone.iterateLimit / 2;
-
             Vector3 tipPosition = ikTip.GetPosition();
-            if (ikTargetPosition.DistanceSquaredTo(tipPosition) < 1e-6f)
+            if (Vector3.DistanceSquared(ikTargetPosition, tipPosition) < 1e-6f)
                 return;
             for (int i = 0; i < ikBone.iterateLimit; i++)
             {
@@ -693,15 +786,15 @@ namespace Mmd.addons.MMDImport
                     var link = ikBone.links[j];
                     var itBone = mmdBones[link.index];
                     var itPosition = itBone.GetPosition();
-                    var targetDirection = itPosition.DirectionTo(ikTargetPosition);
-                    var ikDirection = itPosition.DirectionTo(tipPosition);
+                    var targetDirection = Vector3.Normalize(ikTargetPosition - itPosition);
+                    var ikDirection = Vector3.Normalize(tipPosition - itPosition);
 
-                    float dotV = Mathf.Clamp(targetDirection.Dot(ikDirection), -1, 1);
+                    float dotV = Mathf.Clamp(Vector3.Dot(targetDirection, ikDirection), -1, 1);
                     float angle1 = Mathf.Acos(dotV);
                     if (Math.Abs(angle1) < 6e-4f)
                         continue;
-                    var invertTransform = itBone.transform3D.Basis.Transposed();
-                    var rotateAxis = (invertTransform * targetDirection.Cross(ikDirection)).Normalized();
+                    var invertTransform = Matrix.Transpose(itBone.transform);
+                    var rotateAxis = Vector3.TransformNormal(Vector3.Cross(targetDirection, ikDirection), invertTransform);
 
                     if (axis_limit)
                     {
@@ -719,15 +812,8 @@ namespace Mmd.addons.MMDImport
                         }
                     }
                     var limit = ikBone.angleLimit * (i + 1);
-                    //try
-                    //{
-                    //    var itResult1 = itBone.rotation * new Quaternion(rotateAxis.Normalized(), -Mathf.Clamp(angle1, -limit, limit)).Normalized();
-                    //}
-                    //catch
-                    //{
-                    //    GD.Print($"rot: {rotateAxis}, tar: {targetDirection}, ik: {ikDirection}, angle: {angle1}");
-                    //}
-                    var itResult = itBone.rotation * new Quaternion(rotateAxis, -Mathf.Clamp(angle1, -limit, limit)).Normalized();
+
+                    var itResult = System.Numerics.Quaternion.Normalize(itBone.rotation * QAxisAngle(Vector3.Normalize(rotateAxis), -Math.Clamp(angle1, -limit, limit)));
                     if (link.limited)
                     {
                         Vector3 angle = Vector3.Zero;
@@ -737,37 +823,37 @@ namespace Mmd.addons.MMDImport
                                 {
                                     Vector3 cachedE = QuaternionToZxy(itResult);
                                     angle = LimitAngle(cachedE, axis_limit, link.min, link.max);
-                                    itResult = new Quaternion(Vector3.Back, angle.Z) * new Quaternion(Vector3.Right, angle.X) * new Quaternion(Vector3.Up, angle.Y);
+                                    itResult = QAxisAngle(Vector3.UnitZ, angle.Z) * QAxisAngle(Vector3.UnitX, angle.X) * QAxisAngle(Vector3.UnitY, angle.Y);
                                     break;
                                 }
                             case IKTransformOrder.Xyz:
                                 {
                                     Vector3 cachedE = QuaternionToXyz(itResult);
                                     angle = LimitAngle(cachedE, axis_limit, link.min, link.max);
-                                    itResult = new Quaternion(Vector3.Right, angle.X) * new Quaternion(Vector3.Up, angle.Y) * new Quaternion(Vector3.Back, angle.Z);
+                                    itResult = QAxisAngle(Vector3.UnitX, angle.X) * QAxisAngle(Vector3.UnitY, angle.Y) * QAxisAngle(Vector3.UnitZ, angle.Z);
                                     break;
                                 }
                             case IKTransformOrder.Yzx:
                                 {
                                     Vector3 cachedE = QuaternionToYzx(itResult);
                                     angle = LimitAngle(cachedE, axis_limit, link.min, link.max);
-                                    itResult = new Quaternion(Vector3.Up, angle.Y) * new Quaternion(Vector3.Back, angle.Z) * new Quaternion(Vector3.Right, angle.X);
+                                    itResult = QAxisAngle(Vector3.UnitY, angle.Y) * QAxisAngle(Vector3.UnitZ, angle.Z) * QAxisAngle(Vector3.UnitX, angle.X);
                                     break;
                                 }
                             default:
                                 throw new NotImplementedException();
                         }
                     }
-                    itResult = itResult.Normalized();
+                    itResult = System.Numerics.Quaternion.Normalize(itResult);
                     itBone.rotation = itResult;
                     var parent = itBone.parent;
-                    var it2Tip = invertTransform * (tipPosition - itPosition);
-                    var rotatedVec = parent.transform3D.Basis * (itResult * it2Tip);
+                    var it2Tip = Vector3.TransformNormal(tipPosition - itPosition, invertTransform);
+                    var rotatedVec = Vector3.TransformNormal(Vector3.Transform(it2Tip, itResult), parent.transform);
                     tipPosition = rotatedVec + itPosition;
                 }
                 UpdateIKBones(ikBone);
                 tipPosition = ikTip.GetPosition();
-                if (ikTargetPosition.DistanceSquaredTo(tipPosition) < 1e-6f)
+                if (Vector3.DistanceSquared(ikTargetPosition, tipPosition) < 1e-6f)
                     return;
             }
         }
@@ -787,7 +873,8 @@ namespace Mmd.addons.MMDImport
         {
             if (!axis_lim)
             {
-                return angle.Clamp(low, high);
+                return Vector3.Clamp(angle, low, high);
+                //return angle.Clamp(low, high);
             }
             Vector3 vecL1 = 2.0f * low - angle;
             Vector3 vecH1 = 2.0f * high - angle;
@@ -828,16 +915,25 @@ namespace Mmd.addons.MMDImport
             return new Vector2(interpolator.bx, interpolator.by);
         }
 
-        static Vector3 GetVector3(System.Numerics.Vector3 vec3)
+        static Godot.Vector3 GetVector3(System.Numerics.Vector3 vec3)
         {
-            return new Vector3(vec3.X, vec3.Y, vec3.Z);
+            return new Godot.Vector3(vec3.X, vec3.Y, vec3.Z);
         }
 
-        static Quaternion GetQuaternion(System.Numerics.Quaternion q)
+        static System.Numerics.Vector3 GetVector3S(Godot.Vector3 vec3)
         {
-            return new Quaternion(q.X, q.Y, q.Z, q.W);
+            return new System.Numerics.Vector3(vec3.X, vec3.Y, vec3.Z);
         }
 
+        static Godot.Quaternion GetQuaternion(System.Numerics.Quaternion q)
+        {
+            return new Godot.Quaternion(q.X, q.Y, q.Z, q.W);
+        }
+
+        static System.Numerics.Quaternion GetQuaternionS(Godot.Quaternion q)
+        {
+            return new System.Numerics.Quaternion(q.X, q.Y, q.Z, q.W);
+        }
 
 
         public static Vector3 QuaternionToXyz(Quaternion quaternion)
@@ -1032,6 +1128,12 @@ namespace Mmd.addons.MMDImport
             result.Y = (cx * sy * cz + sx * cy * sz);
             result.Z = (cx * cy * sz - sx * sy * cz);
             return result;
+        }
+        static Quaternion QAxisAngle(Vector3 axis, float angle) => System.Numerics.Quaternion.CreateFromAxisAngle(axis, angle);
+
+        static Matrix TRS(Vector3 position, Quaternion rotation)
+        {
+            return Matrix.CreateFromQuaternion(rotation) * Matrix.CreateTranslation(position);
         }
     }
 }

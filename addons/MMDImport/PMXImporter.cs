@@ -19,8 +19,9 @@ namespace Mmd.addons.MMDImport
             public Godot.Collections.Array<Godot.Collections.Dictionary> appendBoneMeta;
             public Godot.Collections.Array<Godot.Collections.Dictionary> ikBoneMeta;
             public Godot.Collections.Array<Godot.Collections.Dictionary> physicsBoneMeta;
-            public Godot.Collections.Array<Godot.Collections.Dictionary> jointMeta;
-            public Godot.Collections.Array<Godot.Collections.Dictionary> materialMeta;
+            public Godot.Collections.Array<Godot.Collections.Dictionary> jointMeta = new Array<Dictionary>();
+            public Godot.Collections.Array<Godot.Collections.Dictionary> materialMeta = new Array<Dictionary>();
+            public Godot.Collections.Dictionary morphMeta = new Dictionary();
             public Godot.Collections.Dictionary options;
         }
 
@@ -79,6 +80,7 @@ namespace Mmd.addons.MMDImport
             root.SetMeta("physics_bone", createModelContext.physicsBoneMeta);
             root.SetMeta("joint", createModelContext.jointMeta);
             root.SetMeta("material", createModelContext.materialMeta);
+            root.SetMeta("morph", createModelContext.morphMeta);
 
             return root;
         }
@@ -98,19 +100,50 @@ namespace Mmd.addons.MMDImport
                     morphVertice.Add(d.VertexIndex);
                 }
             }
+
+            foreach (var morph in pmx.Morphs)
+            {
+                if (morph.MorphBones != null)
+                {
+                    var arr = new Godot.Collections.Array();
+                    foreach (var b in morph.MorphBones)
+                    {
+                        arr.Add(new Godot.Collections.Dictionary()
+                        {
+                            {"type","bone" },
+                            {"bone",b.BoneIndex },
+                            {"translation",GetVector3(b.Translation) },
+                            {"rotation",GetQuaternion(b.Rotation) }
+                        });
+                    }
+                    createModelContext.morphMeta.Add(morph.Name, arr);
+                }
+                if(morph.SubMorphs != null)
+                {
+                    var arr = new Godot.Collections.Array();
+                    foreach (var s in morph.SubMorphs)
+                    {
+                        arr.Add(new Godot.Collections.Dictionary()
+                        {
+                            {"type","group" },
+                            {"morph",pmx.Morphs[s.GroupIndex].Name },
+                            {"rate",s.Rate }
+                        });
+                    }
+                    createModelContext.morphMeta.Add(morph.Name, arr);
+                }
+            }
             GD.Print($"Import PMX. morph vertices: {morphVertice.Count}");
         }
 
         void CollectMaterial(PMXFormat pmx, CreateModelContext createModelContext)
         {
-            var materialMeta = new Array<Dictionary>();
-            createModelContext.materialMeta = materialMeta;
             createModelContext.materialMap = new System.Collections.Generic.Dictionary<PMX_Material, Material>();
 
             for (int i = 0; i < pmx.Materials.Count; i++)
             {
                 PMX_Material material = pmx.Materials[i];
-                materialMeta.Add(new Dictionary()
+                createModelContext.materialMeta.Add(new Dictionary()
                 {
                     {"flags",(int)material.DrawFlags }
                 });
@@ -119,7 +152,10 @@ namespace Mmd.addons.MMDImport
             if (createModelContext.options.TryGetValue("_subresources", out var _subResource))
             {
                 Godot.Collections.Dictionary subresources = _subResource.AsGodotDictionary();
-                materials = subresources?["materials"].AsGodotDictionary();
+                if (subresources.TryGetValue("materials", out var mat1))
+                {
+                    materials = mat1.AsGodotDictionary();
+                }
             }
             for (int i = 0; i < pmx.Materials.Count; i++)
             {
@@ -559,8 +595,6 @@ namespace Mmd.addons.MMDImport
             }
 
 
-            var jointMeta = new Array<Dictionary>();
-            createModelContext.jointMeta = jointMeta;
             for (int i = 0; i < pmx.Joints.Count; i++)
             {
                 PMX_Joint joint = pmx.Joints[i];
@@ -583,7 +617,7 @@ namespace Mmd.addons.MMDImport
                 pMeta["angular_max"] = GetVector3(joint.AngularMaximum);
                 pMeta["angular_spring"] = GetVector3(joint.AngularSpring);
                 pMeta["type"] = (byte)joint.Type;
-                jointMeta.Add(pMeta);
+                createModelContext.jointMeta.Add(pMeta);
 
                 //CreateJoint(joint, skeleton, physicsBindedName);
             }
@@ -647,6 +681,11 @@ namespace Mmd.addons.MMDImport
                 var bone = pmx.Bones[i];
                 skin.AddNamedBind(bone.Name, new Transform3D(Basis.Identity, GetVector3(-bone.Position)));
             }
+        }
+
+        static Quaternion GetQuaternion(System.Numerics.Quaternion quat)
+        {
+            return new Quaternion(quat.X, quat.Y, quat.Z, quat.W);
         }
 
         static Vector3 GetVector3(System.Numerics.Vector3 vec3)
