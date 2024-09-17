@@ -75,7 +75,7 @@ namespace Mmd.addons.MMDImport
 
         public int CompareTo(IKKeyFrame other)
         {
-            return Frame.CompareTo(other);
+            return Frame.CompareTo(other.Frame);
         }
     }
 
@@ -109,7 +109,17 @@ namespace Mmd.addons.MMDImport
             headerChars = reader.ReadBytes(30);
             var uName = reader.ReadBytes(20);
             var jpEncoding = CodePagesEncodingProvider.Instance.GetEncoding("shift_jis");
-            Name = jpEncoding.GetString(uName);
+            int bufCount = 20;
+            for (int i = 0; i < uName.Length; i++)
+            {
+                if (uName[i] == 0)
+                {
+                    bufCount = i;
+                    break;
+                }
+            }
+
+            Name = jpEncoding.GetString(uName, 0, bufCount);
 
             ReadBoneFrames(reader, jpEncoding);
 
