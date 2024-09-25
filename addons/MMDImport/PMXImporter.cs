@@ -13,6 +13,7 @@ namespace Mmd.addons.MMDImport
         class CreateModelContext
         {
             public bool UseBlendShape;
+            public bool UseDynamicLight;
             public string basePath;
             public HashSet<int> blendShapeVertex;
             public System.Collections.Generic.Dictionary<PMX_Material, Material> materialMap;
@@ -23,6 +24,7 @@ namespace Mmd.addons.MMDImport
             public Godot.Collections.Array<Godot.Collections.Dictionary> materialMeta = new Array<Dictionary>();
             public Godot.Collections.Dictionary morphMeta = new Dictionary();
             public Godot.Collections.Dictionary options;
+
         }
 
         public override string[] _GetExtensions()
@@ -60,6 +62,7 @@ namespace Mmd.addons.MMDImport
                 basePath = basePath,
                 options = options,
             };
+            createModelContext.UseDynamicLight = CheckCharacter(pmx);
             CollectMorphVertex(pmx, createModelContext);
             CollectMaterial(pmx, createModelContext);
             var skeleton = root.GetChild<Skeleton3D>(0);
@@ -118,7 +121,7 @@ namespace Mmd.addons.MMDImport
                     }
                     createModelContext.morphMeta.Add(morph.Name, arr);
                 }
-                if(morph.SubMorphs != null)
+                if (morph.SubMorphs != null)
                 {
                     var arr = new Godot.Collections.Array();
                     foreach (var s in morph.SubMorphs)
@@ -225,7 +228,7 @@ namespace Mmd.addons.MMDImport
         {
             var mesh = new ArrayMesh();
             meshInstance3D.Mesh = mesh;
-
+            meshInstance3D.GIMode = createModelContext.UseDynamicLight ? GeometryInstance3D.GIModeEnum.Dynamic : GeometryInstance3D.GIModeEnum.Static;
             if (createModelContext.UseBlendShape)
             {
                 foreach (var morph in pmx.Morphs)
@@ -253,6 +256,7 @@ namespace Mmd.addons.MMDImport
             {
                 var meshInstance3D = new MeshInstance3D();
                 meshInstance3D.Skin = skin;
+                meshInstance3D.GIMode = createModelContext.UseDynamicLight ? GeometryInstance3D.GIModeEnum.Dynamic : GeometryInstance3D.GIModeEnum.Static;
 
                 var mesh = new ArrayMesh();
                 meshInstance3D.Mesh = mesh;
@@ -264,6 +268,8 @@ namespace Mmd.addons.MMDImport
                     mesh.ResourceName = pmx.Materials[i].Name;
                     AddChildO(skeleton, meshInstance3D);
                 }
+                if (!createModelContext.UseDynamicLight)
+                    mesh.LightmapUnwrap(Transform3D.Identity, 0.2f);
             }
         }
 
@@ -621,6 +627,22 @@ namespace Mmd.addons.MMDImport
 
                 //CreateJoint(joint, skeleton, physicsBindedName);
             }
+        }
+
+        bool CheckCharacter(PMXFormat pmx)
+        {
+            HashSet<string> bonesName = new HashSet<string>()
+            {
+                "右手首",
+                "首",
+                "右足"
+            };
+            for (int i = 0; i < pmx.Bones.Count; i++)
+            {
+                if (bonesName.Contains(pmx.Bones[i].Name))
+                    return true;
+            }
+            return false;
         }
 
         //void CreateJoint(PMX_Joint joint, Skeleton3D skeleton, System.Collections.Generic.Dictionary<int, string> physicsBindedName)

@@ -4,7 +4,6 @@ namespace Mmd.addons.MMDImport.Inspectors
 {
     public partial class Mesh3DInspectorPlugin : EditorInspectorPlugin
     {
-        public EditorPlugin currentPlugin;
 
         public override bool _CanHandle(GodotObject @object)
         {
@@ -19,8 +18,6 @@ namespace Mmd.addons.MMDImport.Inspectors
             if (path.StartsWith(materialOverridePath))
             {
                 string a = path[materialOverridePath.Length..^0];
-
-                var material = (Material)@object.Get(path);
 
                 var hBoxContainer = new HBoxContainer
                 {
@@ -37,6 +34,8 @@ namespace Mmd.addons.MMDImport.Inspectors
                 {
                     if (resource == null)
                         return;
+
+                    var material = (Material)@object.Get(path);
                     var m2 = (Material)resource.Duplicate();
                     if (m2 is ShaderMaterial sm)
                     {
@@ -69,7 +68,7 @@ namespace Mmd.addons.MMDImport.Inspectors
                         }
                     }
                     ReplaceMaterialAction replaceMaterial = new ReplaceMaterialAction();
-                    replaceMaterial.ReplaceMaterialWithPreset(((Node3D)@object).GetParent(), material, m2, currentPlugin.GetUndoRedo());
+                    replaceMaterial.ReplaceMaterialWithPreset(((Node3D)@object).GetParent(), material, m2, MMDImport.currentPlugin.GetUndoRedo());
                 };
 
                 AddCustomControl(hBoxContainer);

@@ -5,7 +5,6 @@ namespace Mmd.addons.MMDImport.Inspectors
     [Tool]
     public partial class MMDInspectorPlugin : EditorInspectorPlugin
     {
-        public EditorPlugin currentPlugin;
 
         MMDModel currentModel;
         FileDialog fileDialog;
@@ -41,14 +40,14 @@ namespace Mmd.addons.MMDImport.Inspectors
                 b1.Pressed += () =>
                 {
                     ReplaceMaterialAction replaceMaterial = new ReplaceMaterialAction();
-                    replaceMaterial.DuplicateMaterials(currentModel, currentPlugin.GetUndoRedo());
+                    replaceMaterial.DuplicateMaterials(currentModel, MMDImport.currentPlugin.GetUndoRedo());
                 };
 
                 var b3 = AddButton("为当前Pose创建网格", "用于简化特效制作。");
                 b3.Pressed += () =>
                 {
                     CreatePoseMeshAction action = new CreatePoseMeshAction();
-                    action.Do(currentModel, currentPlugin.GetUndoRedo());
+                    action.Do(currentModel, MMDImport.currentPlugin.GetUndoRedo());
                 };
 
 
@@ -63,7 +62,7 @@ namespace Mmd.addons.MMDImport.Inspectors
                 b4.Pressed += () =>
                 {
                     SetMeshOverlayAction setMeshOverlay = new SetMeshOverlayAction();
-                    setMeshOverlay.Do(currentModel, (Material)resourcePicker.EditedResource, currentPlugin.GetUndoRedo());
+                    setMeshOverlay.Do(currentModel, (Material)resourcePicker.EditedResource, MMDImport.currentPlugin.GetUndoRedo());
                 };
                 var hBoxContainer = new HBoxContainer
                 {
@@ -73,18 +72,6 @@ namespace Mmd.addons.MMDImport.Inspectors
                 hBoxContainer.AddChild(b4);
                 AddCustomControl(hBoxContainer);
             }
-        }
-
-        public override void _ParseBegin(GodotObject @object)
-        {
-            //var packedScene = ResourceLoader.Load<PackedScene>("res://addons/MMDImport/Inspector.tscn");
-            //AddCustomControl(packedScene.Instantiate<Control>());
-        }
-
-        public override void _ParseEnd(GodotObject @object)
-        {
-            //var packedScene = ResourceLoader.Load<PackedScene>("res://addons/MMDImport/Inspector.tscn");
-            //AddCustomControl(packedScene.Instantiate<Control>());
         }
 
         Button AddButton(string text, string tooltip = "")

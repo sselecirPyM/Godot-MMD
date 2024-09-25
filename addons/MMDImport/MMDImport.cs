@@ -1,6 +1,7 @@
 #if TOOLS
 using Godot;
 using Mmd.addons.MMDImport.Inspectors;
+using System.Collections.Generic;
 
 namespace Mmd.addons.MMDImport
 {
@@ -10,27 +11,28 @@ namespace Mmd.addons.MMDImport
         PMXImporter pmxImporter;
         VMDImporter vmdImporter;
 
-        MMDInspectorPlugin mmdInspectorPlugin;
-        Mesh3DInspectorPlugin mesh3DInspectorPlugin;
+        public static MMDImport currentPlugin;
+
+        public List<EditorInspectorPlugin> editorInspectorPlugins = new List<EditorInspectorPlugin>();
 
         public override void _EnterTree()
         {
+            MMDImport.currentPlugin = this;
             pmxImporter = new PMXImporter();
             AddSceneFormatImporterPlugin(pmxImporter);
             vmdImporter = new VMDImporter();
             AddImportPlugin(vmdImporter);
 
-            mmdInspectorPlugin = new MMDInspectorPlugin
+            editorInspectorPlugins = new List<EditorInspectorPlugin>()
             {
-                currentPlugin = this
+                 new MMDInspectorPlugin(),
+                 new Mesh3DInspectorPlugin(),
+                 new MusicInspectorPlugin(),
             };
-            AddInspectorPlugin(mmdInspectorPlugin);
-
-            mesh3DInspectorPlugin = new Mesh3DInspectorPlugin()
+            foreach (var a in editorInspectorPlugins)
             {
-                currentPlugin = this
-            };
-            AddInspectorPlugin(mesh3DInspectorPlugin);
+                AddInspectorPlugin(a);
+            }
         }
 
         public override void _ExitTree()
@@ -38,8 +40,10 @@ namespace Mmd.addons.MMDImport
             RemoveImportPlugin(vmdImporter);
             RemoveSceneFormatImporterPlugin(pmxImporter);
 
-            RemoveInspectorPlugin(mesh3DInspectorPlugin);
-            RemoveInspectorPlugin(mmdInspectorPlugin);
+            foreach (var a in editorInspectorPlugins)
+            {
+                RemoveInspectorPlugin(a);
+            }
         }
     }
 }
