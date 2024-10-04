@@ -11,7 +11,6 @@ config_version=5
 [application]
 
 config/name="Mmd"
-run/main_scene="res://git_exclude/Scenes/MMD_1.tscn"
 config/features=PackedStringArray("4.2", "C#", "Forward Plus")
 config/icon="res://icon.svg"
 

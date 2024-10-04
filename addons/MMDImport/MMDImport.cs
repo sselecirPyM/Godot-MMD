@@ -15,6 +15,11 @@ namespace Mmd.addons.MMDImport
 
         public List<EditorInspectorPlugin> editorInspectorPlugins = new List<EditorInspectorPlugin>();
 
+        public MMDImport()
+        {
+            currentPlugin ??= this;
+        }
+
         public override void _EnterTree()
         {
             MMDImport.currentPlugin = this;

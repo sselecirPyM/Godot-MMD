@@ -36,8 +36,8 @@ namespace Mmd.addons.MMDImport.Inspectors
                         return;
 
                     var material = (Material)@object.Get(path);
-                    var m2 = (Material)resource.Duplicate();
-                    if (m2 is ShaderMaterial sm)
+                    var duplicatedMaterial = (Material)resource.Duplicate();
+                    if (duplicatedMaterial is ShaderMaterial sm)
                     {
                         if (material is StandardMaterial3D standardMaterial)
                         {
@@ -52,7 +52,7 @@ namespace Mmd.addons.MMDImport.Inspectors
                             sm.RenderPriority = shaderMaterial.RenderPriority;
                         }
                     }
-                    else if (m2 is StandardMaterial3D sm1)
+                    else if (duplicatedMaterial is StandardMaterial3D sm1)
                     {
                         if (material is StandardMaterial3D standardMaterial)
                         {
@@ -68,7 +68,7 @@ namespace Mmd.addons.MMDImport.Inspectors
                         }
                     }
                     ReplaceMaterialAction replaceMaterial = new ReplaceMaterialAction();
-                    replaceMaterial.ReplaceMaterialWithPreset(((Node3D)@object).GetParent(), material, m2, MMDImport.currentPlugin.GetUndoRedo());
+                    replaceMaterial.ReplaceMaterialWithPreset(((Node3D)@object).GetParent(), material, duplicatedMaterial, MMDImport.currentPlugin.GetUndoRedo());
                 };
 
                 AddCustomControl(hBoxContainer);

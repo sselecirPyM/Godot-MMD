@@ -39,7 +39,7 @@ namespace Mmd.addons.MMDImport.Inspectors
                             "-y",
                             "-i", fileName,
                             "-lavfi", $"showspectrumpic=legend=0:stop=16k:scale=lin:limit=0:drange=100:color=channel:win_func=hanning:s={(int)(length*30)}x128",
-                            $"{fileName.Substring(0, fileName.LastIndexOf('.')+1)}.exr"
+                            $"{fileName.Substring(0, fileName.LastIndexOf('.'))}.exr"
                         };
                         ProcessStartInfo info = new ProcessStartInfo();
                         info.FileName = "ffmpeg";

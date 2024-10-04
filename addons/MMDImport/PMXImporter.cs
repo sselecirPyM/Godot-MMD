@@ -4,6 +4,7 @@ using Godot.Collections;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Runtime.InteropServices;
 
 namespace Mmd.addons.MMDImport
 {
@@ -184,7 +185,7 @@ namespace Mmd.addons.MMDImport
                     try
                     {
                         var image = Image.LoadFromFile(createModelContext.basePath + '/' + pmx.Textures[i3].TexturePath);
-                        transparent = DetectTransparent(image);
+                        transparent = DetectTransparent(image, pmx, material);
                         var imageTexture = GD.Load<Texture2D>(createModelContext.basePath + '/' + pmx.Textures[i3].TexturePath);
                         m2.AlbedoTexture = imageTexture;
                     }
@@ -204,22 +205,46 @@ namespace Mmd.addons.MMDImport
             }
         }
 
-        bool DetectTransparent(Image image)
+        //bool DetectTransparent(Image image)
+        //{
+        //    int t1 = 0;
+        //    int t2 = 0;
+        //    int stride = Mathf.Max(image.GetWidth() / 10, 1);
+        //    for (int i = 0; i < image.GetWidth(); i += stride)
+        //    {
+        //        for (int j = 0; j < image.GetHeight(); j += stride)
+        //        {
+        //            var color = image.GetPixel(i, j);
+        //            if (color.A < 0.9f)
+        //            {
+        //                t1++;
+        //            }
+        //            t2++;
+        //        }
+        //    }
+        //    return (float)t1 / (float)t2 > 0.05f;
+        //}
+
+        bool DetectTransparent(Image image, PMXFormat pmx, PMX_Material material)
         {
             int t1 = 0;
-            int t2 = 0;
+            int t2 = 1;
             int stride = Mathf.Max(image.GetWidth() / 10, 1);
-            for (int i = 0; i < image.GetWidth(); i += stride)
+
+            int width = image.GetWidth();
+            int height = image.GetHeight();
+            for (int i = 0; i < material.TriangeIndexNum; i++)
             {
-                for (int j = 0; j < image.GetHeight(); j += stride)
+                int i1 = i + material.TriangeIndexStartNum;
+                var v = pmx.Vertices[pmx.TriangleIndexs[i1]];
+                var a = Mathf.Clamp(Mathf.RoundToInt((v.UvCoordinate.X - Mathf.Floor(v.UvCoordinate.X)) * width), 0, width - 1);
+                var b = Mathf.Clamp(Mathf.RoundToInt((v.UvCoordinate.Y - Mathf.Floor(v.UvCoordinate.Y)) * height), 0, height - 1);
+                var color = image.GetPixel(a, b);
+                if (color.A < 0.9f)
                 {
-                    var color = image.GetPixel(i, j);
-                    if (color.A < 0.9f)
-                    {
-                        t1++;
-                    }
-                    t2++;
+                    t1++;
                 }
+                t2++;
             }
             return (float)t1 / (float)t2 > 0.05f;
         }
@@ -321,7 +346,7 @@ namespace Mmd.addons.MMDImport
             Vector2[] uvs = new Vector2[indexMap.Count];
             int[] bones = new int[indexMap.Count * 4];
             float[] weights = new float[indexMap.Count * 4];
-            float[] tangents = new float[indexMap.Count * 4];
+            //float[] tangents = new float[indexMap.Count * 4];
 
             for (int i = 0; i < indexMap.Count; i++)
             {
@@ -340,11 +365,12 @@ namespace Mmd.addons.MMDImport
                 weights[i * 4 + 1] = vertex.Weights.Y;
                 weights[i * 4 + 2] = vertex.Weights.Z;
                 weights[i * 4 + 3] = vertex.Weights.W;
-                tangents[i * 4 + 0] = 1;
-                tangents[i * 4 + 1] = 0;
-                tangents[i * 4 + 2] = 0;
-                tangents[i * 4 + 3] = 1;
+                //tangents[i * 4 + 0] = 1;
+                //tangents[i * 4 + 1] = 0;
+                //tangents[i * 4 + 2] = 0;
+                //tangents[i * 4 + 3] = 1;
             }
+            var tangents = ComputeTangent(positions, normals, uvs, index);
             for (int i = 0; i < bones.Length; i++)
             {
                 if (bones[i] >= pmx.Bones.Count || bones[i] < 0)
@@ -399,6 +425,145 @@ namespace Mmd.addons.MMDImport
 
             return true;
         }
+
+
+        //bool AddSurface(ArrayMesh mesh, PMXFormat pmx, PMX_Material material, CreateModelContext createModelContext)
+        //{
+        //    int indexStart = material.TriangeIndexStartNum;
+
+        //    List<int> modifiedIndex = new List<int>();
+
+        //    for (int i = 0; i < material.TriangeIndexNum; i += 3)
+        //    {
+        //        int i1 = i + indexStart;
+        //        bool anyBlend = false;
+        //        anyBlend |= createModelContext.blendShapeVertex.Contains(pmx.TriangleIndexs[i1]);
+        //        anyBlend |= createModelContext.blendShapeVertex.Contains(pmx.TriangleIndexs[i1 + 1]);
+        //        anyBlend |= createModelContext.blendShapeVertex.Contains(pmx.TriangleIndexs[i1 + 2]);
+        //        if (createModelContext.UseBlendShape == anyBlend)
+        //        {
+        //            modifiedIndex.Add(pmx.TriangleIndexs[i1]);
+        //            modifiedIndex.Add(pmx.TriangleIndexs[i1 + 1]);
+        //            modifiedIndex.Add(pmx.TriangleIndexs[i1 + 2]);
+        //        }
+        //    }
+        //    if (modifiedIndex.Count == 0)
+        //        return false;
+
+        //    var c1 = new HashSet<int>();
+
+        //    for (int i = 0; i < modifiedIndex.Count; i++)
+        //    {
+        //        c1.Add(modifiedIndex[i]);
+        //    }
+        //    var indexMap = c1.ToList();
+        //    var remap = new System.Collections.Generic.Dictionary<int, int>();
+        //    for (int i = 0; i < indexMap.Count; i++)
+        //    {
+        //        int i1 = indexMap[i];
+        //        remap[i1] = i;
+        //    }
+        //    int[] index = new int[modifiedIndex.Count];
+        //    for (int i = 0; i < modifiedIndex.Count; i++)
+        //    {
+        //        int si = modifiedIndex[i];
+        //        index[i] = remap[si];
+        //    }
+
+        //    SurfaceTool surfaceTool = new SurfaceTool();
+
+        //    //Vector3[] positions = new Vector3[indexMap.Count];
+        //    //Vector3[] normals = new Vector3[indexMap.Count];
+        //    //Vector2[] uvs = new Vector2[indexMap.Count];
+        //    //int[] bones = new int[indexMap.Count * 4];
+        //    //float[] weights = new float[indexMap.Count * 4];
+        //    surfaceTool.Begin(Mesh.PrimitiveType.Triangles);
+        //    for (int i = 0; i < indexMap.Count; i++)
+        //    {
+        //        int i2 = indexMap[i];
+
+        //        ref var vertex = ref pmx.Vertices[i2];
+
+        //        //positions[i] = GetVector3(vertex.Coordinate);
+        //        //normals[i] = GetVector3(vertex.Normal);
+        //        //uvs[i] = GetVector2(vertex.UvCoordinate);
+        //        //bones[i * 4 + 0] = vertex.boneId0;
+        //        //bones[i * 4 + 1] = vertex.boneId1;
+        //        //bones[i * 4 + 2] = vertex.boneId2;
+        //        //bones[i * 4 + 3] = vertex.boneId3;
+        //        //weights[i * 4 + 0] = vertex.Weights.X;
+        //        //weights[i * 4 + 1] = vertex.Weights.Y;
+        //        //weights[i * 4 + 2] = vertex.Weights.Z;
+        //        //weights[i * 4 + 3] = vertex.Weights.W;
+
+        //        surfaceTool.SetUV(GetVector2(vertex.UvCoordinate));
+        //        surfaceTool.SetNormal(GetVector3(vertex.Normal));
+        //        surfaceTool.SetBones(new int[] { CheckN1(vertex.boneId0), CheckN1(vertex.boneId1), CheckN1(vertex.boneId2), CheckN1(vertex.boneId3) });
+        //        surfaceTool.SetWeights(new float[] { vertex.Weights.X, vertex.Weights.Y, vertex.Weights.Z, vertex.Weights.W });
+        //        surfaceTool.AddVertex(GetVector3(vertex.Coordinate));
+        //    }
+        //    foreach (var i in index)
+        //        surfaceTool.AddIndex(i);
+        //    surfaceTool.GenerateTangents();
+        //    var surfaceArray = surfaceTool.CommitToArrays();
+        //    //var tangents = ComputeTangent(positions, normals, uvs, index);
+        //    //for (int i = 0; i < bones.Length; i++)
+        //    //{
+        //    //    if (bones[i] >= pmx.Bones.Count || bones[i] < 0)
+        //    //    {
+        //    //        bones[i] = 0;
+        //    //    }
+        //    //}
+        //    //var surfaceArray = new Godot.Collections.Array();
+        //    //surfaceArray.Resize((int)ArrayMesh.ArrayType.Max);
+        //    //surfaceArray[0] = positions;
+        //    //surfaceArray[1] = normals;
+        //    //surfaceArray[2] = tangents;
+        //    //surfaceArray[4] = uvs;
+        //    //surfaceArray[10] = bones;
+        //    //surfaceArray[11] = weights;
+        //    //surfaceArray[12] = index;
+
+
+        //    var blendShapes = new Godot.Collections.Array<Godot.Collections.Array>();
+        //    blendShapes.Resize(mesh.GetBlendShapeCount());
+
+        //    if (createModelContext.UseBlendShape)
+        //    {
+        //        var normals = surfaceArray[1];
+        //        var tangents = surfaceArray[2];
+        //        int a1 = 0;
+        //        foreach (var morph in pmx.Morphs)
+        //        {
+        //            if (morph.MorphVertice == null)
+        //                continue;
+        //            Vector3[] morphPosition = new Vector3[indexMap.Count];
+        //            foreach (var morphVertex in morph.MorphVertice)
+        //            {
+        //                if (remap.TryGetValue(morphVertex.VertexIndex, out int i1))
+        //                    morphPosition[i1] = GetVector3(morphVertex.Offset);
+        //            }
+        //            var arr1 = new Godot.Collections.Array();
+        //            arr1.Resize(3);
+        //            arr1[0] = morphPosition;
+        //            arr1[1] = normals;
+        //            arr1[2] = tangents;
+        //            //arr1[4] = uvs;
+
+        //            blendShapes[a1] = arr1;
+        //            a1++;
+        //        }
+        //    }
+
+        //    mesh.AddSurfaceFromArrays(Mesh.PrimitiveType.Triangles, surfaceArray, blendShapes);
+        //    int surfaceIndex = mesh.GetSurfaceCount() - 1;
+        //    mesh.SurfaceSetName(surfaceIndex, material.Name);
+
+
+        //    mesh.SurfaceSetMaterial(surfaceIndex, createModelContext.materialMap[material]);
+
+        //    return true;
+        //}
 
         void CreateBones(Skeleton3D skeleton, PMXFormat pmx, CreateModelContext createModelContext)
         {
@@ -724,6 +889,70 @@ namespace Mmd.addons.MMDImport
         {
             parent.AddChild(child);
             child.Owner = parent.Owner;
+        }
+
+
+        float[] ComputeTangent(Vector3[] position, Vector3[] normal, Vector2[] uv, int[] index)
+        {
+            int vertexCount = position.Length;
+
+            Vector3[] bitangent = new Vector3[vertexCount];
+            Vector4[] tangent = new Vector4[vertexCount];
+
+            for (int i = 0; i < vertexCount; i++)
+            {
+                tangent[i] = new Vector4(0.0F, 0.0F, 0.0F, 0.0F);
+            }
+            for (int i = 0; i < vertexCount; i++)
+            {
+                bitangent[i] = new Vector3(0.0F, 0.0F, 0.0F);
+            }
+
+            // Calculate tangent and bitangent for each triangle and add to all three vertices.
+            for (int k = 0; k < index.Length; k += 3)
+            {
+                int i0 = index[k];
+                int i1 = index[k + 1];
+                int i2 = index[k + 2];
+                Vector3 p0 = position[i0];
+                Vector3 p1 = position[i1];
+                Vector3 p2 = position[i2];
+                Vector2 w0 = uv[i0];
+                Vector2 w1 = uv[i1];
+                Vector2 w2 = uv[i2];
+                Vector3 e1 = p1 - p0;
+                Vector3 e2 = p2 - p0;
+                float x1 = w1.X - w0.X, x2 = w2.X - w0.X;
+                float y1 = w1.Y - w0.Y, y2 = w2.Y - w0.Y;
+                float r = 1.0F / (x1 * y2 - x2 * y1);
+                Vector3 t = (e1 * y2 - e2 * y1) * r;
+                Vector3 b = (e2 * x1 - e1 * x2) * r;
+                Vector4 t1 = new Vector4(t.X, t.Y, t.Z, 0);
+                tangent[i0] += t1;
+                tangent[i1] += t1;
+                tangent[i2] += t1;
+                bitangent[i0] += b;
+                bitangent[i1] += b;
+                bitangent[i2] += b;
+            }
+
+            for (int i = 0; i < vertexCount; i++)
+            {
+                float factor;
+                Vector3 t1 = bitangent[i].Cross(normal[i]);
+                if (t1.Dot(new Vector3(tangent[i].X, tangent[i].Y, tangent[i].Z)) > 0)
+                    factor = 1;
+                else
+                    factor = -1;
+                t1 = t1.Normalized() * factor;
+                tangent[i] = new Vector4(t1.X, t1.Y, t1.Z, 1);
+            }
+            return MemoryMarshal.Cast<Vector4, float>(new System.Span<Vector4>(tangent)).ToArray();
+        }
+
+        int CheckN1(int i)
+        {
+            return Mathf.Max(i, 0);
         }
     }
 }
