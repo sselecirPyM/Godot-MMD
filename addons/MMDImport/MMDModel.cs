@@ -61,7 +61,6 @@ namespace Mmd.addons.MMDImport
             public Vector3 restPosition;
             public Quaternion restRotation;
             public Matrix restTransform;
-            public Matrix globalRestTransform;
 
             public Matrix invertRestTransform;
 
@@ -210,22 +209,42 @@ namespace Mmd.addons.MMDImport
                 int index = (int)meta["bone_index"];
                 string name = (string)meta["name"];
 
-                var mmdBone = mmdBones[index];
-                mmdBone.isPhysicsBone = type != 0;
-                var offset = rigidBody.WorldTransform * mmdBone.globalRestTransform.Invert();
-
-                //var offset = Transform3D.Identity;
-                var physicsBone = new PhysicsBone()
+                if (index < 0)
                 {
-                    name = name,
-                    rigidBody = rigidBody,
-                    index = index,
-                    type = type,
-                    offset = offset,
-                    invertOffset = offset.Invert(),
-                };
+                    var offset = rigidBody.WorldTransform;
 
-                physicsBones.Add(physicsBone);
+                    var physicsBone = new PhysicsBone()
+                    {
+                        name = name,
+                        rigidBody = rigidBody,
+                        index = index,
+                        type = type,
+                        offset = offset,
+                        invertOffset = offset.Invert(),
+                    };
+
+                    physicsBones.Add(physicsBone);
+                }
+                else
+                {
+
+                    var mmdBone = mmdBones[index];
+                    mmdBone.isPhysicsBone = type != 0;
+                    var offset = rigidBody.WorldTransform * MMDPhysicsHelper.GetMatrix(skeleton.GetBoneGlobalRest(index)).Invert();
+
+                    var physicsBone = new PhysicsBone()
+                    {
+                        name = name,
+                        rigidBody = rigidBody,
+                        index = index,
+                        type = type,
+                        offset = offset,
+                        invertOffset = offset.Invert(),
+                    };
+
+                    physicsBones.Add(physicsBone);
+                }
+
 
                 //if (PhysicsDebug)
                 //{
@@ -317,7 +336,6 @@ namespace Mmd.addons.MMDImport
                     appendRotation = System.Numerics.Quaternion.Identity,
                     index = i,
                     name = skeleton.GetBoneName(i),
-                    globalRestTransform = MMDPhysicsHelper.GetMatrix(skeleton.GetBoneGlobalRest(i))
                 };
 
                 bone.restTransform = Matrix.CreateTranslation(bone.restPosition);
@@ -581,6 +599,8 @@ namespace Mmd.addons.MMDImport
 
             foreach (var physicsBone in physicsBones)
             {
+                if (physicsBone.index < 0)
+                    continue;
                 var bone = mmdBones[physicsBone.index];
                 physicsBone.SetTransform2(bone.transform);
             }
@@ -602,6 +622,8 @@ namespace Mmd.addons.MMDImport
         {
             foreach (var physicsBone in physicsBones)
             {
+                if (physicsBone.index < 0)
+                    continue;
                 if (physicsBone.type != 0)
                 {
                     var bone = mmdBones[physicsBone.index];

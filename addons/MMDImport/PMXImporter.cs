@@ -36,10 +36,6 @@ namespace Mmd.addons.MMDImport
         {
             return base._GetOptionVisibility(path, forAnimation, option);
         }
-        public override uint _GetImportFlags()
-        {
-            return (uint)EditorSceneFormatImporter.ImportScene;
-        }
 
         public override GodotObject _ImportScene(string path, uint flags, Dictionary options)
         {
@@ -576,16 +572,19 @@ namespace Mmd.addons.MMDImport
                 int index = skeleton.GetBoneCount();
                 skeleton.AddBone(bone.Name);
 
+                System.Numerics.Vector3 position;
                 if (bone.ParentIndex >= 0 && bone.ParentIndex < pmx.Bones.Count)
                 {
                     var parent = pmx.Bones[bone.ParentIndex];
                     skeleton.SetBoneParent(index, bone.ParentIndex);
-                    skeleton.SetBoneRest(index, new Transform3D(Basis.Identity, GetVector3(bone.Position - parent.Position)));
+                    position = bone.Position - parent.Position;
+                    skeleton.SetBonePosePosition(i, GetVector3(position));
                 }
                 else
                 {
-                    skeleton.SetBoneRest(index, new Transform3D(Basis.Identity, GetVector3(bone.Position)));
+                    position = bone.Position;
                 }
+                skeleton.SetBoneRest(index, new Transform3D(Basis.Identity, GetVector3(position)));
 
                 if (bone.boneIK != null)
                 {

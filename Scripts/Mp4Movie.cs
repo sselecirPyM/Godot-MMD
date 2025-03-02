@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
-using System.Text;
 
 namespace Mmd.Scripts
 {
@@ -26,6 +25,8 @@ namespace Mmd.Scripts
         public Node[] removeOnRecord;
         [Export(hintString: "不录制时移除的节点")]
         public Node[] removeOnPlay;
+        [Export(hintString: "录制开始时间")]
+        public float startTime = 0;
 
         string absolutePath;
         Stream pipe;
@@ -37,12 +38,14 @@ namespace Mmd.Scripts
         bool recording;
         bool stop = false;
 
+        RenderingDevice renderingDevice;
 
 
         public override void _Ready()
         {
             if (OS.HasFeature("movie"))
             {
+                renderingDevice = RenderingServer.GetRenderingDevice();
                 recording = true;
                 absolutePath = ProjectSettings.GlobalizePath(movie);
                 Directory.CreateDirectory(Path.GetDirectoryName(absolutePath));
@@ -58,6 +61,20 @@ namespace Mmd.Scripts
                     {
                         node.QueueFree();
                     }
+
+                //var t1 = GetViewport().GetTexture();
+                //renderingDevice.TextureCreate(new RDTextureFormat()
+                //{
+                //    Width = (uint)t1.GetWidth(),
+                //    Height = (uint)t1.GetHeight(),
+                //    Depth = 1,
+                //    Mipmaps = 0,
+                //    Format = RenderingDevice.DataFormat.R8G8B8Unorm,
+                //    Samples = RenderingDevice.TextureSamples.Samples1,
+                //    ArrayLayers = 0,
+                //    UsageBits = RenderingDevice.TextureUsageBits.CanCopyToBit,
+                //    TextureType = RenderingDevice.TextureType.Type2D,
+                //}, new RDTextureView() { });
             }
             else
             {
@@ -84,6 +101,10 @@ namespace Mmd.Scripts
                 "-color_trc","iec61966-2-1",
                 "-s", texture.GetWidth() + "X" + texture.GetHeight(),
                 "-i", @"pipe:0",
+                "-color_primaries","bt709",
+                "-color_trc"," bt709",
+                "-colorspace","bt709",
+                "-color_range", "tv"
             };
 
             switch (encoder)
@@ -147,6 +168,11 @@ namespace Mmd.Scripts
 
         private void RenderingServer_FramePostDraw()
         {
+            if (frameCount < startTime * frameRate)
+            {
+                frameCount++;
+                return;
+            }
             var texture = GetViewport().GetTexture();
             using var image = texture.GetImage();
             var data = image.GetData();
