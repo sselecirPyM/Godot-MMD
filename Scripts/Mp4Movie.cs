@@ -1,7 +1,10 @@
-﻿using Godot;
+using Godot;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace Mmd.Scripts
 {
@@ -11,7 +14,9 @@ namespace Mmd.Scripts
         H264_NVEnc,
         HEVC_NVEnc,
         QSV,
+        AV1_NVEnc,
     }
+
     public partial class Mp4Movie : Node
     {
         [Export(PropertyHint.SaveFile)]
@@ -36,16 +41,12 @@ namespace Mmd.Scripts
         int frameCount = -1;
         float frameRate;
         bool recording;
-        bool stop = false;
-
-        RenderingDevice renderingDevice;
 
 
         public override void _Ready()
         {
             if (OS.HasFeature("movie"))
             {
-                renderingDevice = RenderingServer.GetRenderingDevice();
                 recording = true;
                 absolutePath = ProjectSettings.GlobalizePath(movie);
                 Directory.CreateDirectory(Path.GetDirectoryName(absolutePath));
@@ -54,27 +55,11 @@ namespace Mmd.Scripts
                 {
                     RenderingServer.FramePostDraw += RenderingServer_FramePostDraw;
                 }
-                //pipe = System.IO.File.Create(absolutePath);
-                //RenderingServer.FramePostDraw += RenderingServer_FramePostDraw;
                 if (removeOnRecord != null)
                     foreach (var node in removeOnRecord)
                     {
                         node.QueueFree();
                     }
-
-                //var t1 = GetViewport().GetTexture();
-                //renderingDevice.TextureCreate(new RDTextureFormat()
-                //{
-                //    Width = (uint)t1.GetWidth(),
-                //    Height = (uint)t1.GetHeight(),
-                //    Depth = 1,
-                //    Mipmaps = 0,
-                //    Format = RenderingDevice.DataFormat.R8G8B8Unorm,
-                //    Samples = RenderingDevice.TextureSamples.Samples1,
-                //    ArrayLayers = 0,
-                //    UsageBits = RenderingDevice.TextureUsageBits.CanCopyToBit,
-                //    TextureType = RenderingDevice.TextureType.Type2D,
-                //}, new RDTextureView() { });
             }
             else
             {
@@ -95,7 +80,7 @@ namespace Mmd.Scripts
             {
                 "-y",
                 "-f","rawvideo",
-                "-pixel_format","rgb24",
+                "-pixel_format","rgba",
                 "-r", fps.ToString(),
                 "-colorspace","bt709",
                 "-color_trc","iec61966-2-1",
@@ -136,13 +121,22 @@ namespace Mmd.Scripts
                         absolutePath,
                     });
                     break;
+                case VideoEncoderOption.AV1_NVEnc:
+                    args.AddRange(new string[]
+                    {
+                        "-vf", "format=yuv420p",
+                        "-c:v", "av1_nvenc",
+                        "-cq","26",
+                        absolutePath,
+                    });
+                    break;
                 default:
                     args.AddRange(new string[]
                     {
                         "-vf", "format=yuv420p",
                         "-c:v", "libx264",
-                        //"-preset", "medium",
-                        "-crf", "17",
+    					//"-preset", "medium",
+    					"-crf", "17",
                         absolutePath,
                     });
                     break;
@@ -168,19 +162,27 @@ namespace Mmd.Scripts
 
         private void RenderingServer_FramePostDraw()
         {
+            var texture = GetViewport().GetTexture();
+            var renderingDevice = RenderingServer.GetRenderingDevice();
+            var rid2 = RenderingServer.TextureGetRdTexture(texture.GetRid());
+            renderingDevice.TextureGetDataAsync(rid2, 0, Callable.From<byte[]>(OnFrameDataReceived));
+        }
+        Task previousTask = null;
+        private void OnFrameDataReceived(byte[] data)
+        {
             if (frameCount < startTime * frameRate)
             {
                 frameCount++;
                 return;
             }
-            var texture = GetViewport().GetTexture();
-            using var image = texture.GetImage();
-            var data = image.GetData();
-            pipe.Write(data);
-            pipe.Flush();
+            previousTask?.Wait();
+
+            previousTask = pipe.WriteAsync(data).AsTask().ContinueWith(t => pipe.FlushAsync()).Unwrap();
             frameCount++;
             if (frameCount >= endTime * frameRate)
             {
+                previousTask?.Wait();
+                previousTask = null;
                 QuitGame();
             }
         }

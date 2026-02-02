@@ -249,6 +249,7 @@ namespace Mmd.addons.MMDImport
         {
             var mesh = new ArrayMesh();
             meshInstance3D.Mesh = mesh;
+            meshInstance3D.Skeleton = "..";
             meshInstance3D.GIMode = createModelContext.UseDynamicLight ? GeometryInstance3D.GIModeEnum.Dynamic : GeometryInstance3D.GIModeEnum.Static;
             if (createModelContext.UseBlendShape)
             {
@@ -277,6 +278,7 @@ namespace Mmd.addons.MMDImport
             {
                 var meshInstance3D = new MeshInstance3D();
                 meshInstance3D.Skin = skin;
+                meshInstance3D.Skeleton = "..";
                 meshInstance3D.GIMode = createModelContext.UseDynamicLight ? GeometryInstance3D.GIModeEnum.Dynamic : GeometryInstance3D.GIModeEnum.Static;
 
                 var mesh = new ArrayMesh();
@@ -422,145 +424,6 @@ namespace Mmd.addons.MMDImport
             return true;
         }
 
-
-        //bool AddSurface(ArrayMesh mesh, PMXFormat pmx, PMX_Material material, CreateModelContext createModelContext)
-        //{
-        //    int indexStart = material.TriangeIndexStartNum;
-
-        //    List<int> modifiedIndex = new List<int>();
-
-        //    for (int i = 0; i < material.TriangeIndexNum; i += 3)
-        //    {
-        //        int i1 = i + indexStart;
-        //        bool anyBlend = false;
-        //        anyBlend |= createModelContext.blendShapeVertex.Contains(pmx.TriangleIndexs[i1]);
-        //        anyBlend |= createModelContext.blendShapeVertex.Contains(pmx.TriangleIndexs[i1 + 1]);
-        //        anyBlend |= createModelContext.blendShapeVertex.Contains(pmx.TriangleIndexs[i1 + 2]);
-        //        if (createModelContext.UseBlendShape == anyBlend)
-        //        {
-        //            modifiedIndex.Add(pmx.TriangleIndexs[i1]);
-        //            modifiedIndex.Add(pmx.TriangleIndexs[i1 + 1]);
-        //            modifiedIndex.Add(pmx.TriangleIndexs[i1 + 2]);
-        //        }
-        //    }
-        //    if (modifiedIndex.Count == 0)
-        //        return false;
-
-        //    var c1 = new HashSet<int>();
-
-        //    for (int i = 0; i < modifiedIndex.Count; i++)
-        //    {
-        //        c1.Add(modifiedIndex[i]);
-        //    }
-        //    var indexMap = c1.ToList();
-        //    var remap = new System.Collections.Generic.Dictionary<int, int>();
-        //    for (int i = 0; i < indexMap.Count; i++)
-        //    {
-        //        int i1 = indexMap[i];
-        //        remap[i1] = i;
-        //    }
-        //    int[] index = new int[modifiedIndex.Count];
-        //    for (int i = 0; i < modifiedIndex.Count; i++)
-        //    {
-        //        int si = modifiedIndex[i];
-        //        index[i] = remap[si];
-        //    }
-
-        //    SurfaceTool surfaceTool = new SurfaceTool();
-
-        //    //Vector3[] positions = new Vector3[indexMap.Count];
-        //    //Vector3[] normals = new Vector3[indexMap.Count];
-        //    //Vector2[] uvs = new Vector2[indexMap.Count];
-        //    //int[] bones = new int[indexMap.Count * 4];
-        //    //float[] weights = new float[indexMap.Count * 4];
-        //    surfaceTool.Begin(Mesh.PrimitiveType.Triangles);
-        //    for (int i = 0; i < indexMap.Count; i++)
-        //    {
-        //        int i2 = indexMap[i];
-
-        //        ref var vertex = ref pmx.Vertices[i2];
-
-        //        //positions[i] = GetVector3(vertex.Coordinate);
-        //        //normals[i] = GetVector3(vertex.Normal);
-        //        //uvs[i] = GetVector2(vertex.UvCoordinate);
-        //        //bones[i * 4 + 0] = vertex.boneId0;
-        //        //bones[i * 4 + 1] = vertex.boneId1;
-        //        //bones[i * 4 + 2] = vertex.boneId2;
-        //        //bones[i * 4 + 3] = vertex.boneId3;
-        //        //weights[i * 4 + 0] = vertex.Weights.X;
-        //        //weights[i * 4 + 1] = vertex.Weights.Y;
-        //        //weights[i * 4 + 2] = vertex.Weights.Z;
-        //        //weights[i * 4 + 3] = vertex.Weights.W;
-
-        //        surfaceTool.SetUV(GetVector2(vertex.UvCoordinate));
-        //        surfaceTool.SetNormal(GetVector3(vertex.Normal));
-        //        surfaceTool.SetBones(new int[] { CheckN1(vertex.boneId0), CheckN1(vertex.boneId1), CheckN1(vertex.boneId2), CheckN1(vertex.boneId3) });
-        //        surfaceTool.SetWeights(new float[] { vertex.Weights.X, vertex.Weights.Y, vertex.Weights.Z, vertex.Weights.W });
-        //        surfaceTool.AddVertex(GetVector3(vertex.Coordinate));
-        //    }
-        //    foreach (var i in index)
-        //        surfaceTool.AddIndex(i);
-        //    surfaceTool.GenerateTangents();
-        //    var surfaceArray = surfaceTool.CommitToArrays();
-        //    //var tangents = ComputeTangent(positions, normals, uvs, index);
-        //    //for (int i = 0; i < bones.Length; i++)
-        //    //{
-        //    //    if (bones[i] >= pmx.Bones.Count || bones[i] < 0)
-        //    //    {
-        //    //        bones[i] = 0;
-        //    //    }
-        //    //}
-        //    //var surfaceArray = new Godot.Collections.Array();
-        //    //surfaceArray.Resize((int)ArrayMesh.ArrayType.Max);
-        //    //surfaceArray[0] = positions;
-        //    //surfaceArray[1] = normals;
-        //    //surfaceArray[2] = tangents;
-        //    //surfaceArray[4] = uvs;
-        //    //surfaceArray[10] = bones;
-        //    //surfaceArray[11] = weights;
-        //    //surfaceArray[12] = index;
-
-
-        //    var blendShapes = new Godot.Collections.Array<Godot.Collections.Array>();
-        //    blendShapes.Resize(mesh.GetBlendShapeCount());
-
-        //    if (createModelContext.UseBlendShape)
-        //    {
-        //        var normals = surfaceArray[1];
-        //        var tangents = surfaceArray[2];
-        //        int a1 = 0;
-        //        foreach (var morph in pmx.Morphs)
-        //        {
-        //            if (morph.MorphVertice == null)
-        //                continue;
-        //            Vector3[] morphPosition = new Vector3[indexMap.Count];
-        //            foreach (var morphVertex in morph.MorphVertice)
-        //            {
-        //                if (remap.TryGetValue(morphVertex.VertexIndex, out int i1))
-        //                    morphPosition[i1] = GetVector3(morphVertex.Offset);
-        //            }
-        //            var arr1 = new Godot.Collections.Array();
-        //            arr1.Resize(3);
-        //            arr1[0] = morphPosition;
-        //            arr1[1] = normals;
-        //            arr1[2] = tangents;
-        //            //arr1[4] = uvs;
-
-        //            blendShapes[a1] = arr1;
-        //            a1++;
-        //        }
-        //    }
-
-        //    mesh.AddSurfaceFromArrays(Mesh.PrimitiveType.Triangles, surfaceArray, blendShapes);
-        //    int surfaceIndex = mesh.GetSurfaceCount() - 1;
-        //    mesh.SurfaceSetName(surfaceIndex, material.Name);
-
-
-        //    mesh.SurfaceSetMaterial(surfaceIndex, createModelContext.materialMap[material]);
-
-        //    return true;
-        //}
-
         void CreateBones(Skeleton3D skeleton, PMXFormat pmx, CreateModelContext createModelContext)
         {
             var appendBoneMeta = new Array<Dictionary>();
@@ -682,86 +545,6 @@ namespace Mmd.addons.MMDImport
                 physicsBoneMeta.Add(pMeta);
 
 
-                //var b1 = pmx.Bones[rigidBody.AssociatedBoneIndex];
-                //if (physicsBinded.TryGetValue(b1, out var pb))
-                //{
-                //}
-                //else
-                //{
-                //    var physicsBone = new PhysicalBone3D();
-                //    physicsBone.Name = $"pb_{rigidBody.Name}";
-                //    physicsBone.Mass = rigidBody.Mass;
-                //    physicsBone.LinearDamp = rigidBody.LinearDamp;
-                //    physicsBone.AngularDamp = rigidBody.AngularDamp;
-                //    physicsBone.Bounce = rigidBody.Bounce;
-                //    physicsBone.Friction = rigidBody.Friction;
-                //    physicsBone.Set("bone_name", b1.Name);
-                //    if (rigidBody.Type == PMX_RigidBodyType.Kinematic)
-                //    {
-                //        physicsBone.SetMeta("is_kinematic", true);
-                //    }
-                //    physicsBone.CollisionMask = rigidBody.CollisionMask;
-                //    physicsBone.CollisionLayer = rigidBody.CollisionGroup;
-                //    AddChildO(skeleton, physicsBone);
-                //    pb = physicsBone;
-                //    physicsBinded[b1] = physicsBone;
-                //}
-                //physicsBindedName[i] = pb.Name;
-                //CollisionShape3D collision = new CollisionShape3D();
-                //collision.Position = GetVector3(rigidBody.Position - b1.Position);
-                //collision.Rotation = GetVector3(rigidBody.Rotation);
-                //AddChildO(pb, collision);
-                //switch (rigidBody.Shape)
-                //{
-                //    case PMX_RigidBodyShape.Sphere:
-                //        collision.Shape = new SphereShape3D()
-                //        {
-                //            Radius = rigidBody.Dimensions.X
-                //        };
-                //        collision.Name = "Sphere";
-                //        break;
-                //    case PMX_RigidBodyShape.Box:
-                //        collision.Shape = new BoxShape3D()
-                //        {
-                //            Size = GetVector3(rigidBody.Dimensions)
-                //        };
-                //        collision.Name = "Box";
-                //        break;
-                //    case PMX_RigidBodyShape.Capsule:
-                //        collision.Shape = new CapsuleShape3D()
-                //        {
-                //            Radius = rigidBody.Dimensions.X,
-                //            Height = rigidBody.Dimensions.Y
-                //        };
-                //        collision.Name = "Capsule";
-                //        break;
-                //}
-
-                //MeshInstance3D collisionVisualizer = new MeshInstance3D();
-                //collisionVisualizer.Position = collision.Position;
-                //collisionVisualizer.Quaternion = collision.Quaternion;
-
-                //switch (rigidBody.Shape)
-                //{
-                //    case PMX_RigidBodyShape.Sphere:
-                //        var sphere = new SphereMesh();
-                //        sphere.Radius = rigidBody.Dimemsions.X;
-                //        sphere.Height = rigidBody.Dimemsions.X;
-                //        collisionVisualizer.Mesh = sphere;
-                //        break;
-                //    case PMX_RigidBodyShape.Box:
-                //        var box = new BoxMesh();
-                //        box.Size = GetVector3(rigidBody.Dimemsions);
-                //        collisionVisualizer.Mesh = box;
-                //        break;
-                //    case PMX_RigidBodyShape.Capsule:
-                //        var capsule = new CapsuleMesh();
-                //        capsule.Radius = rigidBody.Dimemsions.X;
-                //        capsule.Height = rigidBody.Dimemsions.Y;
-                //        collisionVisualizer.Mesh = capsule;
-                //        break;
-                //}
-                //AddChildO(pb, collisionVisualizer);
             }
 
 
@@ -808,57 +591,6 @@ namespace Mmd.addons.MMDImport
             }
             return false;
         }
-
-        //void CreateJoint(PMX_Joint joint, Skeleton3D skeleton, System.Collections.Generic.Dictionary<int, string> physicsBindedName)
-        //{
-        //    string GetPath(int index)
-        //    {
-        //        return $"../{physicsBindedName[index]}";
-        //    }
-        //    var j1 = new Generic6DofJoint3D();
-        //    j1.Name = joint.Name;
-        //    j1.Position = GetVector3(joint.Position);
-        //    j1.Rotation = GetVector3(joint.Rotation);
-        //    j1.NodeA = GetPath(joint.AssociatedRigidBodyIndex1);
-        //    j1.NodeB = GetPath(joint.AssociatedRigidBodyIndex2);
-        //    j1.Set("linear_limit_x/upper_distance", joint.LinearMaximum.X);
-        //    j1.Set("linear_limit_y/upper_distance", joint.LinearMaximum.Y);
-        //    j1.Set("linear_limit_z/upper_distance", joint.LinearMaximum.Z);
-        //    j1.Set("linear_limit_x/lower_distance", joint.LinearMinimum.X);
-        //    j1.Set("linear_limit_y/lower_distance", joint.LinearMinimum.Y);
-        //    j1.Set("linear_limit_z/lower_distance", joint.LinearMinimum.Z);
-
-        //    j1.Set("angular_limit_x/upper_angle", joint.AngularMaximum.X);
-        //    j1.Set("angular_limit_y/upper_angle", joint.AngularMaximum.Y);
-        //    j1.Set("angular_limit_z/upper_angle", joint.AngularMaximum.Z);
-        //    j1.Set("angular_limit_x/lower_angle", joint.AngularMinimum.X);
-        //    j1.Set("angular_limit_y/lower_angle", joint.AngularMinimum.Y);
-        //    j1.Set("angular_limit_z/lower_angle", joint.AngularMinimum.Z);
-
-        //    if (joint.LinearSpring.X != 0)
-        //        j1.Set("linear_spring_x/enabled", true);
-        //    if (joint.LinearSpring.Y != 0)
-        //        j1.Set("linear_spring_y/enabled", true);
-        //    if (joint.LinearSpring.Z != 0)
-        //        j1.Set("linear_spring_z/enabled", true);
-        //    j1.Set("linear_spring_x/stiffness", joint.LinearSpring.X);
-        //    j1.Set("linear_spring_y/stiffness", joint.LinearSpring.Y);
-        //    j1.Set("linear_spring_z/stiffness", joint.LinearSpring.Z);
-        //    j1.Set("linear_limit_x/softness", 0.9f);
-        //    j1.Set("linear_limit_y/softness", 0.9f);
-        //    j1.Set("linear_limit_z/softness", 0.9f);
-
-        //    if (joint.AngularSpring.X != 0)
-        //        j1.Set("angular_spring_x/enabled", true);
-        //    if (joint.AngularSpring.Y != 0)
-        //        j1.Set("angular_spring_y/enabled", true);
-        //    if (joint.AngularSpring.Z != 0)
-        //        j1.Set("angular_spring_z/enabled", true);
-        //    j1.Set("angular_spring_x/stiffness", joint.AngularSpring.X);
-        //    j1.Set("angular_spring_y/stiffness", joint.AngularSpring.Y);
-        //    j1.Set("angular_spring_z/stiffness", joint.AngularSpring.Z);
-        //    AddChildO(skeleton, j1);
-        //}
 
         void CreateSkin(Skin skin, PMXFormat pmx)
         {
