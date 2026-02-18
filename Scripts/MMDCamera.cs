@@ -43,13 +43,9 @@ namespace Mmd.Scripts
                 vmd.Scale(motionScale);
             }
             if (AutoPlay && !Engine.IsEditorHint())
-            {
                 Playing = true;
-            }
             if (Playing)
-            {
                 currentTime += delta;
-            }
 
             if (vmd != null)
             {
@@ -59,7 +55,6 @@ namespace Mmd.Scripts
                 Position = GetVector3(cam.position) + Quaternion * new Vector3(0, 0, -cam.distance);
                 Fov = cam.FOV;
             }
-
         }
 
 
@@ -103,12 +98,12 @@ namespace Mmd.Scripts
             float factor = ((float)currentTime * 30 - lf.Frame) / (rf.Frame - lf.Frame);
             factor = Math.Clamp(factor, 0, 1);
 
-            float fx = CubicBezierCurve.Get(GetA(rf.mxInterpolator), GetB(rf.mxInterpolator)).Sample(factor);
-            float fy = CubicBezierCurve.Get(GetA(rf.myInterpolator), GetB(rf.myInterpolator)).Sample(factor);
-            float fz = CubicBezierCurve.Get(GetA(rf.mzInterpolator), GetB(rf.mzInterpolator)).Sample(factor);
-            float fr = CubicBezierCurve.Get(GetA(rf.rInterpolator), GetB(rf.rInterpolator)).Sample(factor);
-            float fd = CubicBezierCurve.Get(GetA(rf.dInterpolator), GetB(rf.dInterpolator)).Sample(factor);
-            float ff = CubicBezierCurve.Get(GetA(rf.fInterpolator), GetB(rf.fInterpolator)).Sample(factor);
+            float fx = rf.mxInterpolator.Sample(factor);
+            float fy = rf.myInterpolator.Sample(factor);
+            float fz = rf.mzInterpolator.Sample(factor);
+            float fr = rf.rInterpolator.Sample(factor);
+            float fd = rf.dInterpolator.Sample(factor);
+            float ff = rf.fInterpolator.Sample(factor);
 
             var position = new System.Numerics.Vector3(lf.position.X * (1 - fx) + rf.position.X * fx,
                 lf.position.Y * (1 - fy) + rf.position.Y * fy,
@@ -120,16 +115,6 @@ namespace Mmd.Scripts
                 FOV = Mathf.Lerp(lf.FOV, rf.FOV, ff),
                 distance = Mathf.Lerp(lf.distance, rf.distance, fd),
             };
-        }
-
-        static Vector2 GetA(Interpolator interpolator)
-        {
-            return new Vector2(interpolator.ax, interpolator.ay);
-        }
-
-        static Vector2 GetB(Interpolator interpolator)
-        {
-            return new Vector2(interpolator.bx, interpolator.by);
         }
     }
 }

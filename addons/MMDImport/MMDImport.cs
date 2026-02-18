@@ -1,6 +1,5 @@
-#if TOOLS
+﻿#if TOOLS
 using Godot;
-using Mmd.addons.MMDImport.Inspectors;
 using System.Collections.Generic;
 
 namespace Mmd.addons.MMDImport
@@ -12,8 +11,6 @@ namespace Mmd.addons.MMDImport
         VMDImporter vmdImporter;
 
         public static MMDImport currentPlugin;
-
-        public List<EditorInspectorPlugin> editorInspectorPlugins = new List<EditorInspectorPlugin>();
 
         public MMDImport()
         {
@@ -27,28 +24,12 @@ namespace Mmd.addons.MMDImport
             AddSceneFormatImporterPlugin(pmxImporter);
             vmdImporter = new VMDImporter();
             AddImportPlugin(vmdImporter);
-
-            editorInspectorPlugins = new List<EditorInspectorPlugin>()
-            {
-                 new MMDInspectorPlugin(),
-                 new Mesh3DInspectorPlugin(),
-                 new MusicInspectorPlugin(),
-            };
-            foreach (var a in editorInspectorPlugins)
-            {
-                AddInspectorPlugin(a);
-            }
         }
 
         public override void _ExitTree()
         {
             RemoveImportPlugin(vmdImporter);
             RemoveSceneFormatImporterPlugin(pmxImporter);
-
-            foreach (var a in editorInspectorPlugins)
-            {
-                RemoveInspectorPlugin(a);
-            }
         }
     }
 }

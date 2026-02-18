@@ -1,4 +1,4 @@
-﻿using Godot;
+﻿using System.Numerics;
 using System;
 
 namespace Mmd.addons.MMDImport.Util

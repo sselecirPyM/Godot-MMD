@@ -61,6 +61,7 @@ namespace Mmd.addons.MMDImport
             public Vector3 restPosition;
             public Quaternion restRotation;
             public Matrix restTransform;
+            public Matrix globalRestTransform;
 
             public Matrix invertRestTransform;
 
@@ -108,7 +109,7 @@ namespace Mmd.addons.MMDImport
                 }
             }
         }
-        class PhysicsBone
+        public class PhysicsBone
         {
             public int index;
             public int type;
@@ -116,6 +117,11 @@ namespace Mmd.addons.MMDImport
             public BulletSharp.RigidBody rigidBody;
             public Matrix offset;
             public Matrix invertOffset;
+
+            public int shape;
+            public Godot.Vector3 dimensions;
+
+            public Dictionary<string, object> tags = new Dictionary<string, object>();
 
             public Node3D visuallizer;
 
@@ -186,7 +192,7 @@ namespace Mmd.addons.MMDImport
 
         List<AppendBone> appendBones = new List<AppendBone>();
         List<IKBone> ikBones = new List<IKBone>();
-        List<PhysicsBone> physicsBones = new List<PhysicsBone>();
+        public List<PhysicsBone> physicsBones = new List<PhysicsBone>();
 
         List<MMDBone> mmdBones = new List<MMDBone>();
         List<MMDJoint> mmdJoints = new List<MMDJoint>();
@@ -209,41 +215,31 @@ namespace Mmd.addons.MMDImport
                 int index = (int)meta["bone_index"];
                 string name = (string)meta["name"];
 
+                Matrix offset;
                 if (index < 0)
                 {
-                    var offset = rigidBody.WorldTransform;
-
-                    var physicsBone = new PhysicsBone()
-                    {
-                        name = name,
-                        rigidBody = rigidBody,
-                        index = index,
-                        type = type,
-                        offset = offset,
-                        invertOffset = offset.Invert(),
-                    };
-
-                    physicsBones.Add(physicsBone);
+                    offset = rigidBody.WorldTransform;
                 }
                 else
                 {
-
                     var mmdBone = mmdBones[index];
                     mmdBone.isPhysicsBone = type != 0;
-                    var offset = rigidBody.WorldTransform * MMDPhysicsHelper.GetMatrix(skeleton.GetBoneGlobalRest(index)).Invert();
-
-                    var physicsBone = new PhysicsBone()
-                    {
-                        name = name,
-                        rigidBody = rigidBody,
-                        index = index,
-                        type = type,
-                        offset = offset,
-                        invertOffset = offset.Invert(),
-                    };
-
-                    physicsBones.Add(physicsBone);
+                    offset = rigidBody.WorldTransform * mmdBone.globalRestTransform.Invert();
                 }
+
+                var physicsBone = new PhysicsBone()
+                {
+                    name = name,
+                    rigidBody = rigidBody,
+                    index = index,
+                    type = type,
+                    offset = offset,
+                    dimensions = (Godot.Vector3)meta["dimensions"],
+                    shape = (int)(int)meta["shape"],
+                    invertOffset = offset.Invert(),
+                };
+
+                physicsBones.Add(physicsBone);
 
 
                 //if (PhysicsDebug)
@@ -336,6 +332,7 @@ namespace Mmd.addons.MMDImport
                     appendRotation = System.Numerics.Quaternion.Identity,
                     index = i,
                     name = skeleton.GetBoneName(i),
+                    globalRestTransform = MMDPhysicsHelper.GetMatrix(skeleton.GetBoneGlobalRest(i))
                 };
 
                 bone.restTransform = Matrix.CreateTranslation(bone.restPosition);
@@ -729,10 +726,10 @@ namespace Mmd.addons.MMDImport
             float factor = ((float)currentTime * 30 - lf.Frame) / (rf.Frame - lf.Frame);
             factor = Math.Clamp(factor, 0, 1);
 
-            float fx = CubicBezierCurve.Get(GetA(rf.xInterpolator), GetB(rf.xInterpolator)).Sample(factor);
-            float fy = CubicBezierCurve.Get(GetA(rf.yInterpolator), GetB(rf.yInterpolator)).Sample(factor);
-            float fz = CubicBezierCurve.Get(GetA(rf.zInterpolator), GetB(rf.zInterpolator)).Sample(factor);
-            float fr = CubicBezierCurve.Get(GetA(rf.rInterpolator), GetB(rf.rInterpolator)).Sample(factor);
+            float fx = rf.xInterpolator.Sample(factor);
+            float fy = rf.yInterpolator.Sample(factor);
+            float fz = rf.zInterpolator.Sample(factor);
+            float fr = rf.rInterpolator.Sample(factor);
 
             var translation = new System.Numerics.Vector3(lf.translation.X * (1 - fx) + rf.translation.X * fx,
                 lf.translation.Y * (1 - fy) + rf.translation.Y * fy,
